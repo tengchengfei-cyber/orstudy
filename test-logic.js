@@ -130,7 +130,7 @@ localStorage._d = {
   "orstudy.v1": "{损坏的JSON",
   "orstudy.v1.backup": JSON.stringify({checkins:{"2026-09-16":["en-vocab"]},extra:{},settings:{semesterStart:"2026-09-07"}})
 };
-DB = loadDB();
+DB = ensureCustomTasks(loadDB());
 eq("主存储损坏时从备份恢复", DB.checkins["2026-09-16"] && DB.checkins["2026-09-16"].length, 1);
 
 // 主存储正常时不用备份
@@ -138,11 +138,11 @@ localStorage._d = {
   "orstudy.v1": JSON.stringify({checkins:{"2026-09-15":["en-read"]},extra:{},settings:{semesterStart:"2026-09-07"}}),
   "orstudy.v1.backup": JSON.stringify({checkins:{"2026-09-14":["en-vocab"]},extra:{},settings:{}})
 };
-DB = loadDB();
+DB = ensureCustomTasks(loadDB());
 eq("主存储正常时优先主存储", Object.keys(DB.checkins)[0], "2026-09-15");
 
 // save 写两个 key
-DB = DEF(); DB.checkins["2026-09-17"] = ["en-vocab"];
+DB = ensureCustomTasks(DEF()); DB.checkins["2026-09-17"] = ["en-vocab"];
 save();
 eq("save 写主存储", JSON.parse(localStorage._d["orstudy.v1"]).checkins["2026-09-17"].length, 1);
 eq("save 写恢复备份", JSON.parse(localStorage._d["orstudy.v1.backup"]).checkins["2026-09-17"].length, 1);
@@ -174,6 +174,42 @@ eq("offset-1 → 第1周·单周", (w2.week-1)%2===1, true);
 eq("下周(单周)·周四无课", shownClasses(4, (w2.week+1)%2===1).length, 0);
 eq("下周(单周)·周五只有生物多样性", shownClasses(5, (w2.week+1)%2===1).map(c=>c.name).join(","), "生物多样性与人类（生命健康）");
 eq("上周(单周)·周五无运筹学", shownClasses(5, (w2.week-1)%2===1).some(c=>c.name==="运筹学"), false);
+
+console.log("\\n【12】自定义任务（v1.2）");
+// 初始状态：ensureCustomTasks 已在加载时用默认值播种
+eq("周一默认 2 项", tasksFor(1).length, 2);
+eq("周六默认 4 项", tasksFor(6).length, 4);
+// 添加
+DB.customTasks[1].push({id:"c1",m:"其他",n:"每日复盘",d:"写三行总结",min:15});
+eq("添加后周一 3 项", tasksFor(1).length, 3);
+eq("新任务可被取到", tasksFor(1).some(t=>t.id==="c1"), true);
+// 删除
+DB.customTasks[1] = DB.customTasks[1].filter(t=>t.id!=="c1");
+eq("删除后周一恢复 2 项", tasksFor(1).length, 2);
+// 恢复默认
+DB.customTasks[1] = [{id:"x",m:"其他",n:"t",d:"",min:10}];
+DB.customTasks[1] = JSON.parse(JSON.stringify(DEFAULT_TASKS[1]));
+eq("恢复默认与内置一致", JSON.stringify(tasksFor(1)), JSON.stringify(DEFAULT_TASKS[1]));
+// 部分缺失时补全、已有保留
+DB.customTasks = {1:[{id:"x",m:"其他",n:"t",d:"",min:10}]};
+ensureCustomTasks(DB);
+eq("缺失的天自动补默认(周日4项)", tasksFor(0).length, 4);
+eq("已有的天保留(周一1项)", tasksFor(1).length, 1);
+eq("补齐后每天都有任务", [0,1,2,3,4,5,6].every(d=>tasksFor(d).length>0), true);
+// 孤儿打卡：删除任务后，历史打卡不再计入统计
+DB.checkins = {}; DB.extra = {};
+DB.customTasks = JSON.parse(JSON.stringify(DEFAULT_TASKS));
+DB.customTasks[3] = [{id:"keep",m:"英语",n:"仅此一项",d:"",min:10}];  // 9/16 是周三
+DB.checkins["2026-09-16"] = ["en-vocab","en-listen"];  // 这两个 id 已不存在于周三
+eq("孤儿打卡不计入 done", dayStats("2026-09-16").done, 0);
+eq("total 按当前任务表算", dayStats("2026-09-16").total, 1);
+eq("孤儿打卡不算 full", dayStats("2026-09-16").full, false);
+DB.checkins["2026-09-16"] = ["keep"];
+eq("真实任务打卡计入", dayStats("2026-09-16").done, 1);
+eq("唯一任务打卡即 full", dayStats("2026-09-16").full, true);
+// 清理状态
+DB.checkins = {}; DB.extra = {};
+DB.customTasks = JSON.parse(JSON.stringify(DEFAULT_TASKS));
 
 console.log("\\n" + "=".repeat(46));
 console.log("  通过 " + pass + " 项，失败 " + fail + " 项");

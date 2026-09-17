@@ -142,6 +142,24 @@ a:hover{text-decoration:underline}
 .row button.danger{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 35%,transparent)}
 footer{text-align:center;color:var(--muted);font-size:11.5px;padding:24px 16px 8px}
 input[type=date]{padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text);font-family:inherit;font-size:14px}
+/* ---- 任务编辑弹窗 ---- */
+.modal{position:fixed;inset:0;z-index:50;background:rgba(10,14,20,.55);display:flex;align-items:flex-end;justify-content:center}
+.modal[hidden]{display:none}
+@media (min-width:640px){ .modal{align-items:center} }
+.modal-card{background:var(--card);border-radius:18px 18px 0 0;width:100%;max-width:560px;max-height:88vh;overflow:auto;padding:16px 16px calc(20px + env(safe-area-inset-bottom));border:1px solid var(--line)}
+@media (min-width:640px){ .modal-card{border-radius:18px} }
+.modal-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.modal-hd b{font-size:16px}
+.modal-hd button{background:var(--line);border:0;border-radius:9px;width:32px;height:32px;font-size:15px;color:var(--text);cursor:pointer}
+.trow{display:flex;gap:8px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--line)}
+.trow .info{flex:1}
+.trow .info .n{font-weight:600;font-size:14px}
+.trow .info .d{font-size:12px;color:var(--muted);margin-top:1px}
+.trow button{flex:none;background:var(--line);border:0;border-radius:8px;color:var(--muted);font-size:12px;padding:6px 9px;cursor:pointer;font-family:inherit}
+.trow button:hover{color:var(--warn)}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.frow .full{grid-column:1/-1}
+.frow input,.frow select{padding:9px 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text);font-family:inherit;font-size:14px;width:100%}
 </style>
 </head>
 <body>
@@ -173,7 +191,10 @@ input[type=date]{padding:8px 10px;border-radius:10px;border:1px solid var(--line
     <h2>今天的课</h2>
     <div class="card" id="td-classes"></div>
 
-    <h2>今天做什么</h2>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+      <h2 style="margin:22px 0 10px">今天做什么</h2>
+      <button class="iconbtn" id="btn-edit-tasks">✎ 编辑任务</button>
+    </div>
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px;color:var(--muted)">
         <span id="td-progress-txt">—</span>
@@ -251,7 +272,10 @@ input[type=date]{padding:8px 10px;border-radius:10px;border:1px solid var(--line
       <div class="note">优先级不是并列：<b>课程是红线 → 英语是硬门槛 → 竞赛是破零 → 工程是胜负手。</b></div>
     </div>
 
-    <h2>本周固定节奏</h2>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+      <h2 style="margin:22px 0 10px">本周固定节奏</h2>
+      <button class="iconbtn" id="btn-edit-tasks2">✎ 编辑任务</button>
+    </div>
     <div class="card">
       <table class="tbl">
         <tr><th>时段</th><th>内容</th><th>时长</th></tr>
@@ -478,6 +502,28 @@ uv run python -c "from ortools.linear_solver import pywraplp; print('OK')"</code
     </details>
   </section>
 
+  <!-- 任务编辑弹窗 -->
+  <div class="modal" id="task-modal" hidden>
+    <div class="modal-card">
+      <div class="modal-hd"><b>✎ 自定义每日任务</b><button id="tm-close">✕</button></div>
+      <div class="seg" id="tm-days"></div>
+      <div class="note" id="tm-hint" style="margin-top:8px"></div>
+      <div id="tm-list"></div>
+      <div class="frow">
+        <input id="tm-name" class="full" placeholder="任务名（必填，如：背六级单词）" maxlength="30">
+        <input id="tm-desc" class="full" placeholder="说明（选填，如：墨墨 App 新词 50）" maxlength="60">
+        <select id="tm-module">
+          <option>英语</option><option>竞赛</option><option>工程</option><option>课程</option><option>其他</option>
+        </select>
+        <input id="tm-min" type="number" min="5" max="600" step="5" value="30" placeholder="分钟">
+      </div>
+      <div class="row">
+        <button id="tm-add">➕ 添加任务</button>
+        <button id="tm-restore" class="danger">恢复这一天默认</button>
+      </div>
+    </div>
+  </div>
+
   <footer>优化方向 · 本地打卡 · 数据只存在你自己的设备上</footer>
 </main>
 
@@ -514,8 +560,8 @@ const SCHEDULE = {
   6: []
 };
 
-// 每日任务：0=周日 … 6=周六
-const TASKS = {
+// 内置默认任务（可被用户在弹窗里增删改；0=周日 … 6=周六）
+const DEFAULT_TASKS = {
   0:[{id:"en-vocab",m:"英语",n:"词汇",d:"新词 50 + 复习前日",min:15},
      {id:"en-write",m:"英语",n:"写作 / 翻译",d:"1 篇",min:25},
      {id:"or-algebra",m:"竞赛",n:"高代 / 真题（上午）",d:"钱吉林高代题解精粹",min:120},
@@ -566,6 +612,13 @@ function sanitize(raw){
       if(Array.isArray(r.extra[k])) out.extra[k] = r.extra[k].filter(x=>x && typeof x.id==="string" && typeof x.n==="string");
     });
   }
+  if(r.customTasks && typeof r.customTasks === "object" && !Array.isArray(r.customTasks)){
+    [0,1,2,3,4,5,6].forEach(d=>{
+      if(Array.isArray(r.customTasks[d])){
+        out.customTasks[d] = r.customTasks[d].filter(t=>t && typeof t.id==="string" && typeof t.n==="string");
+      }
+    });
+  }
   return out;
 }
 /* 主存储损坏或为空时，自动回退到备份 */
@@ -577,7 +630,19 @@ function loadDB(){
   try{ raw = JSON.parse(localStorage.getItem(KEY_BAK)); }catch(e){ raw = null; }
   return sanitize(raw);
 }
-let DB = loadDB();
+/* 自定义任务表：首次使用或导入旧数据时，用内置默认值补全。可传入 db 以便在加载路径里使用 */
+function ensureCustomTasks(db){
+  db = db || DB;   // 防御：不传参时操作当前库
+  if(!db.customTasks || typeof db.customTasks !== "object" || Array.isArray(db.customTasks)){
+    db.customTasks = JSON.parse(JSON.stringify(DEFAULT_TASKS));
+  }
+  [0,1,2,3,4,5,6].forEach(d=>{
+    if(!Array.isArray(db.customTasks[d])) db.customTasks[d] = JSON.parse(JSON.stringify(DEFAULT_TASKS[d]));
+  });
+  return db;
+}
+let DB = ensureCustomTasks(loadDB());
+
 const save = () => {
   try{
     const s = JSON.stringify(DB);
@@ -607,7 +672,7 @@ function shownClasses(dayIdx, isOdd){
     return true;
   }).sort((a,b)=>a.p-b.p);
 }
-function tasksFor(dayIdx){ return TASKS[dayIdx]||[]; }
+function tasksFor(dayIdx){ return (DB.customTasks && DB.customTasks[dayIdx]) || []; }
 function doneList(dateStr){ return DB.checkins[dateStr] || (DB.checkins[dateStr]=[]); }
 function isDone(dateStr,id){ return (DB.checkins[dateStr]||[]).indexOf(id)>=0; }
 function toggle(dateStr,id){
@@ -619,9 +684,10 @@ function toggle(dateStr,id){
 }
 function dayStats(dateStr){
   const idx = parseYmd(dateStr).getDay();
-  const total = tasksFor(idx).length + ((DB.extra[dateStr]||[]).length);
-  const done = (DB.checkins[dateStr]||[]).length;
-  return {done, total, full: total>0 && done>=total};
+  // 只统计「当前任务表里真实存在」的打卡项 —— 用户删掉任务后，历史孤儿打卡不计入
+  const ids = tasksFor(idx).map(t=>t.id).concat((DB.extra[dateStr]||[]).map(e=>e.id));
+  const done = ids.filter(id=>isDone(dateStr,id)).length;
+  return {done, total: ids.length, full: ids.length>0 && done>=ids.length};
 }
 function streak(){
   let n=0; const d = midnight(new Date());
@@ -920,7 +986,8 @@ document.getElementById("file-in").addEventListener("change",e=>{
     try{
       const o = JSON.parse(r.result);
       if(!o.checkins) throw new Error("格式不对");
-      DB = Object.assign(DEF(), o); save(); renderAll();
+      DB = ensureCustomTasks(Object.assign(DEF(), o));
+      save(); renderAll();
       alert("导入成功。");
     }catch(err){ alert("导入失败："+err.message); }
   };
@@ -931,6 +998,67 @@ document.getElementById("btn-reset").addEventListener("click",()=>{
     DB = DEF(); save(); renderAll(); alert("已清空。");
   }
 });
+
+/* ---------- 任务编辑弹窗 ---------- */
+let tmDay = new Date().getDay();
+function openTaskModal(){
+  tmDay = new Date().getDay();
+  renderTaskModal();
+  document.getElementById("task-modal").hidden = false;
+  document.body.style.overflow = "hidden";
+}
+function closeTaskModal(){
+  document.getElementById("task-modal").hidden = true;
+  document.body.style.overflow = "";
+}
+function renderTaskModal(){
+  document.getElementById("tm-days").innerHTML = [1,2,3,4,5,6,0].map(d=>
+    '<button data-d="'+d+'" class="'+(d===tmDay?"on":"")+'">'+WEEKNAME[d]+'</button>'
+  ).join("");
+  document.querySelectorAll("#tm-days button").forEach(b=>{
+    b.addEventListener("click",()=>{ tmDay = Number(b.dataset.d); renderTaskModal(); });
+  });
+  const list = tasksFor(tmDay);
+  document.getElementById("tm-hint").textContent =
+    WEEKNAME[tmDay]+" · "+list.length+" 项任务 · 改动立即生效，历史打卡不受影响";
+  document.getElementById("tm-list").innerHTML = list.map(t=>
+    '<div class="trow"><div class="info">'+
+    '<div class="n"><span class="chip '+t.m+'">'+t.m+'</span> '+t.n+'</div>'+
+    (t.d?'<div class="d">'+t.d+'</div>':'')+
+    '<div class="d">约 '+t.min+' 分钟</div></div>'+
+    '<button data-del="'+t.id+'">删除</button></div>'
+  ).join("") || '<div style="color:var(--muted);font-size:13.5px;padding:10px 0">这一天没有任务，在下面添加。</div>';
+  document.querySelectorAll("#tm-list [data-del]").forEach(b=>{
+    b.addEventListener("click",()=>{
+      DB.customTasks[tmDay] = DB.customTasks[tmDay].filter(t=>t.id!==b.dataset.del);
+      save(); renderTaskModal(); renderAll();
+    });
+  });
+}
+document.getElementById("tm-add").addEventListener("click",()=>{
+  const name = document.getElementById("tm-name").value.trim();
+  if(!name){ alert("任务名不能为空"); return; }
+  const task = {
+    id: "c"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),
+    m: document.getElementById("tm-module").value,
+    n: name,
+    d: document.getElementById("tm-desc").value.trim(),
+    min: Math.max(5, Math.min(600, Number(document.getElementById("tm-min").value)||30))
+  };
+  DB.customTasks[tmDay].push(task);
+  document.getElementById("tm-name").value = "";
+  document.getElementById("tm-desc").value = "";
+  save(); renderTaskModal(); renderAll();
+});
+document.getElementById("tm-restore").addEventListener("click",()=>{
+  if(!confirm("把"+WEEKNAME[tmDay]+"恢复成内置默认任务？你添加和删除的都会还原。")) return;
+  DB.customTasks[tmDay] = JSON.parse(JSON.stringify(DEFAULT_TASKS[tmDay]));
+  save(); renderTaskModal(); renderAll();
+});
+document.getElementById("tm-close").addEventListener("click",closeTaskModal);
+document.getElementById("task-modal").addEventListener("click",e=>{ if(e.target.id==="task-modal") closeTaskModal(); });
+document.getElementById("btn-edit-tasks").addEventListener("click",openTaskModal);
+document.getElementById("btn-edit-tasks2").addEventListener("click",openTaskModal);
 
 renderAll();
 // 「进行中」标记与今日状态每分钟自动刷新（不重绘统计页，保持轻量）
