@@ -211,6 +211,52 @@ eq("唯一任务打卡即 full", dayStats("2026-09-16").full, true);
 DB.checkins = {}; DB.extra = {};
 DB.customTasks = JSON.parse(JSON.stringify(DEFAULT_TASKS));
 
+console.log("\\n【13】周视图报表（weekStats）");
+DB.checkins = {}; DB.extra = {};
+DB.customTasks = JSON.parse(JSON.stringify(DEFAULT_TASKS));
+let ws = weekStats(4);
+eq("返回 4 周", ws.length, 4);
+eq("无打卡时本周 rate=0", ws[3].rate, 0);
+eq("每项都有 label/days", ws.every(w=>w.label && typeof w.days==="number"), true);
+eq("周数按时间升序且末尾是本周", ws[3].days >= 1, true);
+const tds = ymd(new Date());
+setDayAll(tds);
+ws = weekStats(4);
+const expRate = Math.round(100 / ws[3].withTasks);   // 周完成率按整周口径：只打卡今天 = 1/本周已过天数
+eq("今天全打卡后本周 rate 正确", ws[3].rate, expRate);
+eq("本周 full 天数 = 1", ws[3].full, 1);
+eq("上周无打卡 rate=0", ws[2].rate, 0);
+setDayAll(tds);            // 取消，还原
+ws = weekStats(1);
+eq("取消后 rate=0", ws[0].rate, 0);
+toggle(tds, "en-vocab");   // 英语 15 分钟
+ws = weekStats(1);
+eq("英语词汇 15 分钟进本周桶", ws[0].mins["英语"], 15);
+eq("其他模块为 0", ws[0].mins["竞赛"]||0, 0);
+// 上周的数据进上周的桶
+const lastMon = new Date(); lastMon.setDate(lastMon.getDate() - ((new Date().getDay()+6)%7) - 7);
+DB.checkins[ymd(lastMon)] = ["en-vocab","en-listen"];   // 周一：词汇15+听力25=40
+ws = weekStats(2);
+eq("上周英语 40 分钟", ws[0].mins["英语"], 40);
+eq("本周只有 15 分钟", ws[1].mins["英语"], 15);
+DB.checkins = {}; DB.extra = {};
+
+console.log("\\n【14】同步 LWW 决策（syncDecide / updated）");
+eq("远端新 → 拉取(-1)", syncDecide(100, 200), -1);
+eq("本地新 → 推送(1)", syncDecide(200, 100), 1);
+eq("相等 → 不动(0)", syncDecide(150, 150), 0);
+eq("都为 0 → 不动", syncDecide(0, 0), 0);
+eq("远端 0 本地有值 → 推送", syncDecide(50, 0), 1);
+eq("本地缺 远端有值 → 拉取", syncDecide(undefined, 9), -1);
+eq("非法值按 0 处理", syncDecide("abc", null), 0);
+DB = ensureCustomTasks(DEF());
+DB.updated = 0;
+const t0 = Date.now();
+save();
+eq("save 后 updated 被更新", DB.updated >= t0, true);
+eq("sanitize 保留 updated", sanitize({updated: 123456}).updated, 123456);
+eq("sanitize 非法 updated 归 0", sanitize({updated: "x"}).updated, 0);
+
 console.log("\\n" + "=".repeat(46));
 console.log("  通过 " + pass + " 项，失败 " + fail + " 项");
 console.log("=".repeat(46));

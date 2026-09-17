@@ -160,6 +160,9 @@ input[type=date]{padding:8px 10px;border-radius:10px;border:1px solid var(--line
 .frow{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
 .frow .full{grid-column:1/-1}
 .frow input,.frow select{padding:9px 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text);font-family:inherit;font-size:14px;width:100%}
+/* ---- 周报表 ---- */
+.chart{width:100%;height:auto;display:block}
+.chart text{font-size:10px;fill:var(--muted)}
 </style>
 </head>
 <body>
@@ -463,6 +466,9 @@ uv run python -c "from ortools.linear_solver import pywraplp; print('OK')"</code
     <h2>各模块累计</h2>
     <div class="card" id="s-modules"></div>
 
+    <h2>周视图报表</h2>
+    <div class="card" id="s-week"><div style="color:var(--muted);font-size:13.5px">加载中…</div></div>
+
     <h2>设置</h2>
     <details open>
       <summary>开学第一周的日期</summary>
@@ -485,6 +491,22 @@ uv run python -c "from ortools.linear_solver import pywraplp; print('OK')"</code
         <input type="file" id="file-in" accept="application/json,.json" style="display:none">
         <div class="row"><button id="btn-reset" class="danger">清空全部打卡数据</button></div>
         <div class="note">导出的 JSON 可以直接发到微信文件传输助手，在手机上导入即可。<br>另外：每次保存都会自动在本机留一份<b>恢复备份</b>，主数据意外损坏时自动回退，无需手动处理。</div>
+      </div>
+    </details>
+
+    <details>
+      <summary>跨设备同步（云端）</summary>
+      <div class="body">
+        <p style="font-size:13.5px;color:var(--muted)">打卡数据自动在多个设备间保持一致（<b>最后写入胜出</b>）。需要先部署一个同步后端（Cloudflare Worker 或自建服务器），部署方法见 README「跨设备同步」。</p>
+        <div class="frow">
+          <input id="sy-url" class="full" placeholder="后端地址，如 https://orstudy-sync.xxx.workers.dev" autocomplete="off">
+          <input id="sy-key" class="full" placeholder="同步密钥（自定一串长随机码，两个设备填同一个）" autocomplete="off">
+        </div>
+        <div class="row">
+          <button id="sy-save">保存并同步</button>
+          <button id="sy-now">立即同步</button>
+        </div>
+        <div class="note" id="sy-status">未配置</div>
       </div>
     </details>
 
@@ -595,7 +617,7 @@ const MILESTONES = [
 /* ============================== 存储 ============================== */
 const KEY = "orstudy.v1";
 const KEY_BAK = "orstudy.v1.backup";
-const DEF = () => ({settings:{semesterStart:"2026-09-07"},checkins:{},extra:{}});
+const DEF = () => ({settings:{semesterStart:"2026-09-07"},checkins:{},extra:{},updated:0});
 
 /* 清洗任意来源的数据为合法结构，防止损坏的存储把应用搞崩 */
 function sanitize(raw){
@@ -619,6 +641,7 @@ function sanitize(raw){
       }
     });
   }
+  out.updated = (typeof r.updated === "number" && isFinite(r.updated)) ? r.updated : 0;
   return out;
 }
 /* 主存储损坏或为空时，自动回退到备份 */
@@ -645,11 +668,54 @@ let DB = ensureCustomTasks(loadDB());
 
 const save = () => {
   try{
+    DB.updated = Date.now();          // 每次写入都盖时间戳（同步的 LWW 依据）
     const s = JSON.stringify(DB);
     localStorage.setItem(KEY_BAK, s);   // 先写恢复备份，再写主存储
     localStorage.setItem(KEY, s);
   }catch(e){ try{ alert("保存失败：浏览器存储不可用"); }catch(_){} }
 };
+
+/* ---------- 跨设备同步（LWW 最后写入胜出） ---------- */
+const SYNC_KEY = "orstudy.sync.v1";
+let SYNC = {url:"", key:"", last:0, status:"未配置"};
+try{ SYNC = Object.assign(SYNC, JSON.parse(localStorage.getItem(SYNC_KEY)||"{}")); }catch(e){}
+function saveSyncCfg(){ try{ localStorage.setItem(SYNC_KEY, JSON.stringify(SYNC)); }catch(e){} }
+/* 纯函数：返回 -1=拉取远端 / 1=推送本地 / 0=一致 */
+function syncDecide(localT, remoteT){
+  const l = Number(localT)||0, r = Number(remoteT)||0;
+  return r > l ? -1 : (l > r ? 1 : 0);
+}
+async function syncNow(manual){
+  if(!SYNC.url || !SYNC.key){
+    SYNC.status = "未配置：先填后端地址与同步密钥";
+    if(manual) renderSyncUI();
+    return;
+  }
+  const endpoint = SYNC.url.replace(/\/+$/,"") + "/" + encodeURIComponent(SYNC.key);
+  try{
+    const res = await fetch(endpoint, {method:"GET", cache:"no-store"});
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    let remote = null;
+    try{ remote = await res.json(); }catch(e){ throw new Error("云端数据不是 JSON"); }
+    const d = syncDecide(DB.updated, remote && remote.updated);
+    if(d < 0){
+      DB = ensureCustomTasks(sanitize(remote));
+      save(); renderAll();
+      SYNC.status = "已从云端拉取";
+    }else if(d > 0){
+      const put = await fetch(endpoint, {method:"PUT", body: JSON.stringify(DB)});
+      if(!put.ok) throw new Error("PUT HTTP "+put.status);
+      SYNC.status = "已推送到云端";
+    }else{
+      SYNC.status = "两边已一致";
+    }
+    SYNC.last = Date.now();
+  }catch(e){
+    SYNC.status = "同步失败："+(e.message||e);
+  }
+  saveSyncCfg();
+  if(manual) renderSyncUI();
+}
 
 /* ============================== 工具 ============================== */
 const pad = n => String(n).padStart(2,"0");
@@ -727,6 +793,51 @@ function setDayAll(dateStr){
   if(allDone){ delete DB.checkins[dateStr]; }
   else { DB.checkins[dateStr] = ids.slice(); }
   save(); renderAll();
+}
+
+/* 周视图统计：返回近 n 周的完成率与模块时长（纯函数，供测试） */
+function weekStats(nWeeks){
+  const out = [];
+  const now = new Date();
+  const todayMid = midnight(now);
+  const dayMs = 86400000;
+  const thisMon = new Date(todayMid);
+  thisMon.setDate(thisMon.getDate() - ((now.getDay()+6)%7));   // 本周周一
+  const firstMon = new Date(thisMon);
+  firstMon.setDate(firstMon.getDate() - 7*(nWeeks-1));
+  for(let w=0; w<nWeeks; w++){
+    const mon = new Date(firstMon);
+    mon.setDate(firstMon.getDate() + 7*w);
+    const days = [];
+    for(let i=0;i<7;i++){
+      const d = new Date(mon);
+      d.setDate(mon.getDate()+i);
+      if(d > todayMid) continue;          // 未来日期不计入
+      days.push(ymd(d));
+    }
+    let full = 0, withTasks = 0;
+    const mins = {};
+    days.forEach(ds=>{
+      const s = dayStats(ds);
+      if(s.total > 0) withTasks++;
+      if(s.full) full++;
+      const idx = parseYmd(ds).getDay();
+      const all = tasksFor(idx).concat((DB.extra[ds]||[]).map(e=>({id:e.id,m:"其他",min:0})));
+      (DB.checkins[ds]||[]).forEach(id=>{
+        const t = all.find(x=>x.id===id);
+        if(!t) return;
+        mins[t.m] = (mins[t.m]||0) + (t.min||0);
+      });
+    });
+    out.push({
+      label: (mon.getMonth()+1)+"/"+mon.getDate(),
+      days: days.length,
+      withTasks, full,
+      rate: withTasks ? Math.round(full/withTasks*100) : 0,
+      mins
+    });
+  }
+  return out;
 }
 
 /* ============================== 渲染 ============================== */
@@ -921,6 +1032,64 @@ function renderStats(){
   document.getElementById("set-preview").textContent = wi.started
     ? ("按当前设置：今天是第 "+wi.week+" 周（"+(wi.odd?"单周":"双周")+"）")
     : "按当前设置：今天在第 1 周之前，请检查日期。";
+
+  renderWeekChart(weekStats(8));
+  renderSyncUI();
+}
+
+/* 周报表：完成率柱状图 + 模块时长堆叠图（纯 SVG，零依赖） */
+const MOD_COLORS = {"英语":"#8b5cf6","竞赛":"#f97316","工程":"#10b981","课程":"#3b82f6","其他":"#94a3b8"};
+function renderWeekChart(ws){
+  const el = document.getElementById("s-week");
+  if(!el || !ws || !ws.length) return;
+  const W = 360, H = 150, H2 = 118, padL = 4, bw = 26, gap = 18;
+  const innerH = H - 44;
+  const xs = ws.map((_,i)=> padL + i*(bw+gap) + gap/2 + bw/2);
+  let bars = "", labels = "", labels2 = "";
+  ws.forEach((w,i)=>{
+    const x = xs[i] - bw/2;
+    const h = w.days>0 ? Math.max(2, Math.round(innerH*w.rate/100)) : 0;
+    const y = 26 + innerH - h;
+    const color = w.rate>=80 ? "#10b981" : (w.rate>=40 ? "#3b82f6" : "#94a3b8");
+    bars += '<rect x="'+x+'" y="'+y+'" width="'+bw+'" height="'+h+'" rx="4" fill="'+color+'"/>';
+    if(w.days>0) bars += '<text x="'+xs[i]+'" y="'+(y-4)+'" text-anchor="middle">'+w.rate+'%</text>';
+    labels  += '<text x="'+xs[i]+'" y="'+(H-6)+'" text-anchor="middle">'+w.label+'</text>';
+    labels2 += '<text x="'+xs[i]+'" y="'+(H2-6)+'" text-anchor="middle">'+w.label+'</text>';
+  });
+  const maxMin = Math.max(60, ...ws.map(w=>Object.values(w.mins).reduce((a,b)=>a+b,0)));
+  let stack = "";
+  ws.forEach((w,i)=>{
+    const x = xs[i] - bw/2;
+    let yCur = H2 - 16;
+    ["其他","课程","工程","竞赛","英语"].forEach(m=>{
+      const v = w.mins[m]||0;
+      if(v<=0) return;
+      const h = Math.max(2, Math.round((H2-26)*v/maxMin));
+      yCur -= h;
+      stack += '<rect x="'+x+'" y="'+yCur+'" width="'+bw+'" height="'+h+'" rx="1.5" fill="'+MOD_COLORS[m]+'"/>';
+    });
+  });
+  const legend = Object.entries(MOD_COLORS).map(([m,c]) =>
+    '<span style="margin-right:10px"><span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:'+c+';margin-right:3px"></span>'+m+'</span>').join("");
+  el.innerHTML =
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:4px">近 '+ws.length+' 周完成率（%）</div>'+
+    '<svg class="chart" viewBox="0 0 '+W+' '+H+'">'+bars+labels+'</svg>'+
+    '<div style="font-size:12px;color:var(--muted);margin:16px 0 4px">近 '+ws.length+' 周各模块累计时长（分钟）</div>'+
+    '<svg class="chart" viewBox="0 0 '+W+' '+H2+'">'+stack+labels2+'</svg>'+
+    '<div style="margin-top:8px;font-size:12px">'+legend+'</div>';
+}
+
+/* 同步配置回显与状态 */
+function renderSyncUI(){
+  const u = document.getElementById("sy-url");
+  const k = document.getElementById("sy-key");
+  const s = document.getElementById("sy-status");
+  if(u && document.activeElement !== u) u.value = SYNC.url || "";
+  if(k && document.activeElement !== k) k.value = SYNC.key || "";
+  if(s){
+    const lastTxt = SYNC.last ? (" · 上次 "+new Date(SYNC.last).toLocaleTimeString()) : "";
+    s.textContent = (SYNC.status||"未配置") + lastTxt;
+  }
 }
 
 function renderAll(){ renderToday(); renderSchedule(); renderStats(); }
@@ -995,9 +1164,15 @@ document.getElementById("file-in").addEventListener("change",e=>{
 });
 document.getElementById("btn-reset").addEventListener("click",()=>{
   if(confirm("确定清空全部打卡数据？此操作不可撤销，建议先导出备份。")){
-    DB = DEF(); save(); renderAll(); alert("已清空。");
+    DB = ensureCustomTasks(DEF()); save(); renderAll(); alert("已清空。");
   }
 });
+document.getElementById("sy-save").addEventListener("click",()=>{
+  SYNC.url = document.getElementById("sy-url").value.trim();
+  SYNC.key = document.getElementById("sy-key").value.trim();
+  saveSyncCfg(); syncNow(true);
+});
+document.getElementById("sy-now").addEventListener("click",()=>syncNow(true));
 
 /* ---------- 任务编辑弹窗 ---------- */
 let tmDay = new Date().getDay();
@@ -1063,6 +1238,11 @@ document.getElementById("btn-edit-tasks2").addEventListener("click",openTaskModa
 renderAll();
 // 「进行中」标记与今日状态每分钟自动刷新（不重绘统计页，保持轻量）
 setInterval(()=>{ renderToday(); renderSchedule(); }, 60000);
+// 已配置同步时：启动自动同步（2 秒后首拉，此后每 2 分钟）
+if(SYNC.url && SYNC.key){
+  setTimeout(()=>syncNow(false), 2000);
+  setInterval(()=>syncNow(false), 120000);
+}
 if("serviceWorker" in navigator && location.protocol.startsWith("http")){
   navigator.serviceWorker.register("sw.js").catch(()=>{});
 }

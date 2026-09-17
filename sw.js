@@ -1,6 +1,6 @@
 /* Service Worker：网络优先，断网时用缓存回退。
    采用「网络优先」而不是「缓存优先」，避免出现「改了文件但页面不更新」的经典坑。 */
-const CACHE = "orstudy-v3";
+const CACHE = "orstudy-v4";
 const ASSETS = ["./", "./index.html", "./manifest.json", "./icon.svg"];
 
 self.addEventListener("install", (e) => {
