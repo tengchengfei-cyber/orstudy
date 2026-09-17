@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4f8bff"/>
+      <stop offset="1" stop-color="#1d4ed8"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <!-- 坐标轴 -->
+  <path d="M92 402 H420" stroke="#ffffff" stroke-opacity=".34" stroke-width="11" stroke-linecap="round"/>
+  <!-- 目标函数曲线：一个极小值 -->
+  <path d="M108 146 C 186 146, 198 344, 256 344 C 314 344, 326 146, 404 146"
+        fill="none" stroke="#ffffff" stroke-width="23" stroke-linecap="round"/>
+  <!-- 最优解 -->
+  <circle cx="256" cy="344" r="44" fill="#ffffff" fill-opacity=".26"/>
+  <circle cx="256" cy="344" r="21" fill="#ffffff"/>
+</svg>

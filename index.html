@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2563eb">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="优化方向">
+<meta name="description" content="运筹优化方向 · 课表与行动打卡">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<title>优化方向 · 课表与打卡</title>
+<style>
+:root{
+  --bg:#f5f6f8; --card:#ffffff; --text:#1b2330; --muted:#697586;
+  --line:#e4e7ec; --accent:#2563eb; --accent-soft:#eaf0fe;
+  --c-course:#2563eb; --c-english:#7c3aed; --c-contest:#ea580c; --c-eng:#059669;
+  --ok:#16a34a; --warn:#dc2626; --radius:14px;
+  --shadow:0 1px 2px rgba(16,24,40,.05), 0 4px 14px rgba(16,24,40,.05);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0f1319; --card:#171d26; --text:#e7ecf3; --muted:#94a3b8;
+    --line:#28313d; --accent:#5b8cff; --accent-soft:#1b2739;
+    --c-course:#5b8cff; --c-english:#a78bfa; --c-contest:#fb923c; --c-eng:#34d399;
+    --ok:#4ade80; --shadow:0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.25);
+  }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--text); font-size:16px; line-height:1.65;
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Segoe UI",Roboto,sans-serif;
+  padding-bottom:calc(72px + env(safe-area-inset-bottom));
+  -webkit-text-size-adjust:100%;
+}
+.wrap{max-width:760px;margin:0 auto;padding:0 16px}
+header{
+  position:sticky; top:0; z-index:20; background:color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter:saturate(180%) blur(12px); border-bottom:1px solid var(--line);
+}
+.hd{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;max-width:760px;margin:0 auto}
+.hd h1{font-size:17px;margin:0;font-weight:650;letter-spacing:.2px}
+.hd .sub{font-size:12px;color:var(--muted);display:block;font-weight:400;margin-top:1px}
+.iconbtn{background:var(--card);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:7px 11px;font-size:13px;cursor:pointer}
+h2{font-size:15px;margin:22px 0 10px;font-weight:650;letter-spacing:.2px}
+h3{font-size:14px;margin:16px 0 8px;font-weight:600;color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;margin-bottom:12px}
+.view{display:none} .view.on{display:block}
+nav{
+  position:fixed;bottom:0;left:0;right:0;z-index:30;background:color-mix(in srgb, var(--card) 94%, transparent);
+  backdrop-filter:saturate(180%) blur(12px);border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom);
+}
+.nav{display:flex;max-width:760px;margin:0 auto}
+.nav button{
+  flex:1;background:none;border:0;padding:9px 2px 8px;color:var(--muted);font-size:11px;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:3px;font-family:inherit
+}
+.nav button .g{font-size:19px;line-height:1}
+.nav button.on{color:var(--accent);font-weight:600}
+.chip{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;font-weight:600;white-space:nowrap}
+.chip.英语{background:color-mix(in srgb,var(--c-english) 15%,transparent);color:var(--c-english)}
+.chip.竞赛{background:color-mix(in srgb,var(--c-contest) 15%,transparent);color:var(--c-contest)}
+.chip.工程{background:color-mix(in srgb,var(--c-eng) 15%,transparent);color:var(--c-eng)}
+.chip.课程{background:color-mix(in srgb,var(--c-course) 15%,transparent);color:var(--c-course)}
+.banner{border-radius:var(--radius);padding:14px 16px;margin:14px 0;background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 22%,transparent)}
+.banner .big{font-size:22px;font-weight:700;letter-spacing:.3px}
+.banner .sm{font-size:12.5px;color:var(--muted);margin-top:2px}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 12px;text-align:center;box-shadow:var(--shadow)}
+.kpi .n{font-size:20px;font-weight:700;line-height:1.25}
+.kpi .l{font-size:11px;color:var(--muted);margin-top:1px}
+.cls{display:flex;gap:11px;align-items:flex-start;padding:10px 0;border-bottom:1px dashed var(--line)}
+.cls:last-child{border-bottom:0;padding-bottom:0}
+.cls .t{font-variant-numeric:tabular-nums;font-size:12.5px;color:var(--muted);min-width:88px;padding-top:2px;font-weight:600}
+.cls .n{font-weight:600;font-size:15px}
+.cls .r{font-size:12.5px;color:var(--muted);margin-top:2px}
+.cls.now{background:color-mix(in srgb,var(--accent) 8%,transparent);border-radius:10px;padding-left:9px;padding-right:9px;margin-left:-9px;margin-right:-9px}
+.tag{font-size:11px;color:var(--c-course);border:1px dashed color-mix(in srgb,var(--c-course) 45%,transparent);border-radius:6px;padding:0 5px;margin-left:6px;font-weight:600}
+.task{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--line);cursor:pointer;user-select:none}
+.task:last-child{border-bottom:0}
+.task .box{
+  flex:none;width:24px;height:24px;border-radius:8px;border:2px solid var(--line);margin-top:1px;
+  display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;transition:.15s
+}
+.task.done .box{background:var(--ok);border-color:var(--ok)}
+.task.done .n{text-decoration:line-through;color:var(--muted)}
+.task .n{font-weight:600;font-size:15px}
+.task .d{font-size:12.5px;color:var(--muted);margin-top:2px}
+.task .m{font-size:11px;color:var(--muted);margin-top:3px}
+.bar{height:9px;border-radius:99px;background:var(--line);overflow:hidden;margin:10px 0 4px}
+.bar > i{display:block;height:100%;background:var(--accent);border-radius:99px;transition:width .3s}
+.grid7{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin:10px 0}
+.grid7 .d{text-align:center;font-size:11px;color:var(--muted)}
+.grid7 .c{aspect-ratio:1;border-radius:9px;background:var(--line);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--muted)}
+.grid7 .c.full{background:var(--ok);color:#fff}
+.grid7 .c.part{background:color-mix(in srgb,var(--ok) 38%,transparent);color:var(--text)}
+.grid7 .c.today{outline:2px solid var(--accent);outline-offset:1px}
+.day{padding:11px 0;border-bottom:1px solid var(--line)}
+.day:last-child{border-bottom:0}
+.day .h{font-weight:650;font-size:14.5px;margin-bottom:5px;display:flex;justify-content:space-between;align-items:center}
+.day .h .w{font-size:11px;color:var(--muted);font-weight:400}
+.day.free{color:var(--muted)}
+.seg{display:flex;gap:6px;margin:6px 0 12px}
+.seg button{flex:1;padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit;font-weight:600}
+.seg button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.ml{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.ml:last-child{border-bottom:0}
+.ml .n{font-weight:600;font-size:14.5px}
+.ml .s{font-size:12px;color:var(--muted);margin-top:2px}
+.ml .cd{font-variant-numeric:tabular-nums;font-weight:700;font-size:15px;color:var(--accent);white-space:nowrap;text-align:right}
+.ml .cd.pass{color:var(--muted);font-weight:500;font-size:12.5px}
+.ml .cd.soon{color:var(--warn)}
+details{border:1px solid var(--line);border-radius:12px;background:var(--card);margin-bottom:10px;overflow:hidden;box-shadow:var(--shadow)}
+details summary{padding:13px 14px;cursor:pointer;font-weight:650;font-size:14.5px;list-style:none;display:flex;justify-content:space-between;align-items:center}
+details summary::-webkit-details-marker{display:none}
+details summary::after{content:"+";color:var(--muted);font-weight:400;font-size:18px}
+details[open] summary::after{content:"−"}
+details .body{padding:0 14px 14px;border-top:1px solid var(--line)}
+.tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+.tbl th,.tbl td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+.tbl th{color:var(--muted);font-weight:600;font-size:12px}
+.tbl td:first-child{white-space:nowrap;font-weight:600}
+ul,ol{padding-left:20px;margin:8px 0}
+li{margin:5px 0}
+a{color:var(--accent);text-decoration:none;word-break:break-all}
+a:hover{text-decoration:underline}
+.pill{display:inline-block;font-size:11px;padding:2px 8px;border-radius:99px;background:var(--line);color:var(--muted);font-weight:600;margin:0 4px 4px 0}
+.note{font-size:13px;color:var(--muted);background:color-mix(in srgb,var(--line) 40%,transparent);border-radius:10px;padding:10px 12px;margin:10px 0}
+.warnbox{font-size:13px;border-left:3px solid var(--warn);background:color-mix(in srgb,var(--warn) 7%,transparent);border-radius:0 10px 10px 0;padding:10px 12px;margin:10px 0}
+.okbox{font-size:13px;border-left:3px solid var(--ok);background:color-mix(in srgb,var(--ok) 8%,transparent);border-radius:0 10px 10px 0;padding:10px 12px;margin:10px 0}
+.extra{display:flex;gap:8px;margin-top:10px}
+.extra input{flex:1;padding:9px 11px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text);font-size:14px;font-family:inherit}
+.extra button{padding:9px 14px;border-radius:10px;border:0;background:var(--accent);color:#fff;font-weight:600;font-size:14px;cursor:pointer;font-family:inherit}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.row button{flex:1;min-width:120px;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--text);font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit}
+.row button.danger{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 35%,transparent)}
+footer{text-align:center;color:var(--muted);font-size:11.5px;padding:24px 16px 8px}
+input[type=date]{padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text);font-family:inherit;font-size:14px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hd">
+    <div>
+      <h1>优化方向 <span class="sub" id="hdsub">—</span></h1>
+    </div>
+    <button class="iconbtn" id="btnweek">周次 ⚙</button>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ============ 今日 ============ -->
+  <section id="v-today" class="view on">
+    <div class="banner">
+      <div class="big" id="td-date">—</div>
+      <div class="sm" id="td-week">—</div>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi"><div class="n" id="k-done">0/0</div><div class="l">今日任务</div></div>
+      <div class="kpi"><div class="n" id="k-streak">0</div><div class="l">连续打卡(天)</div></div>
+      <div class="kpi"><div class="n" id="k-total">0</div><div class="l">累计打卡(天)</div></div>
+    </div>
+
+    <h2>今天的课</h2>
+    <div class="card" id="td-classes"></div>
+
+    <h2>今天做什么</h2>
+    <div class="card" id="td-tasks"></div>
+
+    <div class="card">
+      <h3 style="margin-top:0">加一条今天的额外任务</h3>
+      <div class="extra">
+        <input id="extra-in" placeholder="例如：写投资组合项目 README" maxlength="60">
+        <button id="extra-add">添加</button>
+      </div>
+      <div id="extra-list"></div>
+    </div>
+
+    <h2>倒计时</h2>
+    <div class="card" id="td-milestones"></div>
+  </section>
+
+  <!-- ============ 课表 ============ -->
+  <section id="v-schedule" class="view">
+    <h2>课表</h2>
+    <div class="seg" id="seg-week">
+      <button data-w="auto" class="on">本周</button>
+      <button data-w="odd">单周</button>
+      <button data-w="even">双周</button>
+    </div>
+    <div class="note" id="seg-hint"></div>
+    <div class="card" id="sch-list"></div>
+
+    <h2>作息时段</h2>
+    <div class="card">
+      <table class="tbl">
+        <tr><th>节次</th><th>时间</th></tr>
+        <tr><td>第 1 节</td><td>08:00 – 09:50</td></tr>
+        <tr><td>第 2 节</td><td>10:10 – 12:00</td></tr>
+        <tr><td>第 3 节</td><td>14:00 – 15:50</td></tr>
+        <tr><td>第 4 节</td><td>16:10 – 18:00</td></tr>
+        <tr><td>第 5 节</td><td>19:00 – 20:50</td></tr>
+      </table>
+    </div>
+
+    <h2>课程备注</h2>
+    <div class="card">
+      <ul>
+        <li><b>周四第 3 节 证券投资学</b> —— 仅双周</li>
+        <li><b>周五第 1 节 运筹学</b> —— 仅双周</li>
+        <li><b>周五第 5 节 生物多样性与人类</b> —— 单双周都上</li>
+        <li><b>周一 / 周二 / 周三</b> —— 单双周无差异</li>
+        <li><b>周六 / 周日</b> —— 无课</li>
+      </ul>
+      <div class="okbox"><b>对你的意义：</b>单周的周四下午和周五上午是空出来的整块时间 —— 这是你做「工程实践」和「竞赛冲刺」最值钱的窗口，别浪费掉。</div>
+    </div>
+  </section>
+
+  <!-- ============ 计划 ============ -->
+  <section id="v-plan" class="view">
+    <h2>总览</h2>
+    <div class="card">
+      <table class="tbl">
+        <tr><th>模块</th><th>目标</th><th>每周</th></tr>
+        <tr><td>课程</td><td>守住 3/30（<b>红线</b>）</td><td>不额外占时间</td></tr>
+        <tr><td>英语</td><td>六级 <b>550+</b></td><td>3–4 h</td></tr>
+        <tr><td>竞赛</td><td>省二保底、冲省一</td><td>6–8 h</td></tr>
+        <tr><td>工程</td><td>GitHub 仓库 + 一个真项目</td><td>3–5 h</td></tr>
+      </table>
+      <div class="note">优先级不是并列：<b>课程是红线 → 英语是硬门槛 → 竞赛是破零 → 工程是胜负手。</b></div>
+    </div>
+
+    <h2>本周固定节奏</h2>
+    <div class="card">
+      <table class="tbl">
+        <tr><th>时段</th><th>内容</th><th>时长</th></tr>
+        <tr><td>周一–周五</td><td>英语：词汇 15 ＋ 听力/阅读 25</td><td>40 min</td></tr>
+        <tr><td>周二晚</td><td>竞赛：数分专题</td><td>2 h</td></tr>
+        <tr><td>周四晚</td><td>竞赛：数分 / 高代刷题</td><td>2 h</td></tr>
+        <tr><td>周六上午</td><td>竞赛：数分</td><td>2 h</td></tr>
+        <tr><td>周六下午</td><td>工程：OR-Tools 练手</td><td>2 h</td></tr>
+        <tr><td>周日上午</td><td>竞赛：高代 / 真题</td><td>2 h</td></tr>
+        <tr><td>周日下午</td><td>工程：项目推进</td><td>2–3 h</td></tr>
+      </table>
+      <div class="note">合计 ≈15 h/周。竞赛考完后重排：英语 40% / 工程 60%，工程逐步升到 80%。</div>
+    </div>
+
+    <h2>关键节点</h2>
+    <div class="card" id="plan-milestones"></div>
+
+    <h2>阶段任务</h2>
+    <details open>
+      <summary>阶段 0 · 本周必做（有截止日期）</summary>
+      <div class="body">
+        <ol>
+          <li><b>报名数学竞赛</b> —— 截止 <b>10 月 12 日</b>。必须<b>两个渠道都报</b>：赛氪 <a href="https://www.saikr.com/cmathc/sdu/2026" target="_blank" rel="noopener">saikr.com/cmathc/sdu/2026</a> ＋ 山东省科协 <a href="http://www.sdast.org.cn/" target="_blank" rel="noopener">sdast.org.cn</a>（服务大厅 → 大学生科技节 → 赛事报名）。两处信息必须一致，否则拿不到证书。</li>
+          <li><b>确认六级报名</b> —— 四六级报名通常 9 月下旬截止。</li>
+          <li><b>下载两份文件</b>存档：学院《推免工作实施细则》《创新素养突破提升赋分细则（含竞赛分级名录）》。</li>
+          <li><b>加竞赛 QQ 群</b>（四选一）：865809401 / 865771418 / 708591519 / 850737107。<b>9 月有张天德教授宣讲</b>，务必听。</li>
+        </ol>
+      </div>
+    </details>
+
+    <details>
+      <summary>阶段 1 · 第 1–4 周：把工具变成手感</summary>
+      <div class="body">
+        <ul>
+          <li>装环境：<code>uv add ortools pandas numpy matplotlib jupyter</code></li>
+          <li>主教材只读一本：<b>H.P. Williams《Model Building in Mathematical Programming》</b></li>
+          <li>按 OR-Tools 官方教程练六个模型：背包 → 指派 → 运输/网络流 → 选址 → <b>VRP</b> → <b>车间排程</b></li>
+          <li><b>产出：GitHub 仓库</b>，3–5 个能跑的模型 + README 写清每条约束的含义</li>
+        </ul>
+      </div>
+    </details>
+
+    <details>
+      <summary>阶段 2 · 第 3–8 周：第一个真实数据项目</summary>
+      <div class="body">
+        <ul>
+          <li>题目：<b>投资组合优化</b>（均值-方差 → ＋约束 → CVaR / 鲁棒优化）</li>
+          <li>数据：AKShare / Tushare（真实数据）</li>
+          <li>对照：先手写，再用 PyPortfolioOpt 对照 —— 这本身就是一次模型验证训练</li>
+          <li><b>产出三条</b>：① 真实数据 + 脏数据处理过程 ② 标准做法 vs 你的改进（数值进 README）③ <b>加一节「模型在什么情况下会给出错误结论」</b></li>
+        </ul>
+        <div class="warnbox"><b>铁律：不要用教材里的模拟数据。</b>同行评审复算证明模拟与真实分布差近 20 倍；面试官看的就是「你处理过脏数据吗」。</div>
+      </div>
+    </details>
+
+    <details>
+      <summary>阶段 3 · 第 6–10 周：带着东西去敲门</summary>
+      <div class="body">
+        <p><b>优先联系</b>：刘丙强（组合优化 + 生物信息，有真实数据）、张江华（供应链 / 管理科学，对口就业）。<br>其余：吴建良 / 王光辉 / 李国君 / 崔玉泉 / 胡发胜 / 戎晓霞。</p>
+        <p><b>邮件三要点：</b></p>
+        <ol>
+          <li>不要问「老师您还招人吗」——那是让对方替你承担决定成本</li>
+          <li>要问一个<b>具体的技术问题</b>，证明你真读了论文、真做了项目</li>
+          <li>附上 <b>GitHub 链接</b>，让「我能干活」有证据</li>
+        </ol>
+        <div class="note"><b>目的</b>：同时拿到两样 —— 一封有实质内容的推荐信（中科院数学院要两封副教授以上）+ 一段面试里讲得清的经历。</div>
+      </div>
+    </details>
+
+    <details>
+      <summary>阶段 4 · 第 9–12 个月：把牌打完</summary>
+      <div class="body">
+        <table class="tbl">
+          <tr><td>2026.11.14</td><td>竞赛初赛（考完放下，别恋战）</td></tr>
+          <tr><td>2026.12</td><td>六级（目标 550+）</td></tr>
+          <tr><td>2027.1–2</td><td>项目做到可展示；锁定 3–5 位目标导师</td></tr>
+          <tr><td>2027.3–4</td><td>整理材料；<b>联系 2 位老师谈推荐信</b></td></tr>
+          <tr><td>2027.5–7</td><td><b>夏令营</b>：AMSS、中科大、南开、同济、武大、中山</td></tr>
+          <tr><td>2027.8–9</td><td><b>预推免 = 主战场</b> + 本校兜底</td></tr>
+        </table>
+      </div>
+    </details>
+
+    <h2>不要做</h2>
+    <div class="card">
+      <ol>
+        <li>不要先啃完教材再动手</li>
+        <li>不要用模拟数据做项目</li>
+        <li>不要把主要精力押在<b>数学建模</b>竞赛上（与数学竞赛共用同一 40 分池、只取最高，学术认可度更低）</li>
+        <li>不要空手去找老师</li>
+        <li>不要同时开五条线 —— 上面已经满了</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============ 资源 ============ -->
+  <section id="v-res" class="view">
+    <h2>英语</h2>
+    <div class="card">
+      <table class="tbl">
+        <tr><th>用途</th><th>具体</th></tr>
+        <tr><td>真题</td><td>华研外语 / 星火《大学英语六级真题》（近 10 年）—— <b>唯一必须买的</b></td></tr>
+        <tr><td>词汇</td><td>墨墨背单词 / 不背单词 App（六级核心词）</td></tr>
+        <tr><td>听力</td><td>每日英语听力 App（六级真题音频）</td></tr>
+      </table>
+      <div class="warnbox"><b>不要刷模拟题。</b>真题命题规律性强，真题做 3 遍远胜模拟题做 10 套。</div>
+      <h3>550 分怎么拆</h3>
+      <table class="tbl">
+        <tr><th>模块</th><th>满分</th><th>550 需要</th></tr>
+        <tr><td>听力</td><td>248.5</td><td>≈195</td></tr>
+        <tr><td>阅读</td><td>248.5</td><td>≈210</td></tr>
+        <tr><td>写作+翻译</td><td>213</td><td>≈145</td></tr>
+      </table>
+      <div class="note">425 → 550 的差距几乎全在听力和阅读。别把时间花在背作文模板上。</div>
+    </div>
+
+    <h2>数学竞赛</h2>
+    <div class="card">
+      <table class="tbl">
+        <tr><th>优先</th><th>书</th></tr>
+        <tr><td>★★★</td><td><b>历年真题</b>（数学类初赛，官方公布）—— 决定 80% 的分数</td></tr>
+        <tr><td>★★★</td><td><b>《全国大学生数学竞赛辅导指南》张天德 主编</b> —— 张天德是山大教授、<b>山东赛区负责人</b>，最对口</td></tr>
+        <tr><td>★★★</td><td><b>裴礼文《数学分析中的典型问题与方法》</b></td></tr>
+        <tr><td>★★</td><td>钱吉林《数学分析题解精粹》/《高等代数题解精粹》</td></tr>
+        <tr><td>★</td><td>吕林根《解析几何》—— 只占 15%，用本科教材即可</td></tr>
+      </table>
+      <div class="note">考什么：数学分析 <b>50%</b> ＋ 高等代数 <b>35%</b> ＋ 解析几何 <b>15%</b>。严格按分值配时间。<br>竞赛重技巧与构造，<b>真题边际收益远高于教材</b>。</div>
+      <div class="okbox">获奖率约 29%（一等 ≤5%、二等 ≤9%、三等 ≤15%），你是基地班前 10% —— <b>省二保底合理，省一可冲</b>。</div>
+    </div>
+
+    <h2>工具链（全部可免费获得）</h2>
+    <div class="card">
+      <h3 style="margin-top:0">求解器</h3>
+      <table class="tbl">
+        <tr><th>工具</th><th>费用</th><th>定位</th></tr>
+        <tr><td>Google OR-Tools</td><td><b>完全免费</b></td><td><b>入门主力</b>，VRP / 排程教程完整</td></tr>
+        <tr><td>Gurobi</td><td><b>学术免费</b>（山大邮箱申请）</td><td><b>工业标准</b>，性能最强</td></tr>
+        <tr><td>HiGHS</td><td>开源免费</td><td>开源 MIP 最强，pip 直装</td></tr>
+        <tr><td>COPT（杉数）</td><td>国产，有学术版</td><td>国内工业界在推</td></tr>
+      </table>
+      <h3>编程环境</h3>
+      <p><span class="pill">Python 3.11+</span><span class="pill">VS Code</span><span class="pill">uv</span><span class="pill">Git + GitHub</span><span class="pill">Jupyter</span><span class="pill">gurobipy</span><span class="pill">Pyomo</span><span class="pill">pandas</span><span class="pill">numpy</span><span class="pill">matplotlib</span><span class="pill">AKShare</span><span class="pill">PyPortfolioOpt</span></p>
+      <pre style="background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:11px;overflow:auto;font-size:12.5px"><code>uv init or-project &amp;&amp; cd or-project
+uv add ortools pandas numpy matplotlib jupyter
+uv run python -c "from ortools.linear_solver import pywraplp; print('OK')"</code></pre>
+    </div>
+
+    <h2>书（只读这本为主）</h2>
+    <div class="card">
+      <table class="tbl">
+        <tr><th>顺序</th><th>书</th></tr>
+        <tr><td>1 主教材</td><td><b>H.P. Williams《Model Building in Mathematical Programming》</b>（Wiley 第 5 版）</td></tr>
+        <tr><td>2</td><td>Kochenderfer《Algorithms for Optimization》（MIT Press，官网<b>免费 PDF</b>）</td></tr>
+        <tr><td>3</td><td>Boyd《Convex Optimization》（Stanford 官网免费）—— <b>现在不要通读</b></td></tr>
+        <tr><td>中文备查</td><td>陈宝林《最优化理论与算法》</td></tr>
+      </table>
+      <div class="okbox"><b>为什么主教材是 Williams 而不是运筹学教材：</b>AI 在优化上的瓶颈正是「把业务文字正确翻译成带全部约束的模型」（有 ICML 2026 的受控实验证明：加一条约束准确率就显著下降）。<b>这本书训练的恰好就是这一环。</b>常规《运筹学》教材当字典查，别通读。</div>
+    </div>
+
+    <h2>免费课程</h2>
+    <div class="card">
+      <ul>
+        <li><b>Coursera《Discrete Optimization》</b>（墨尔本大学，Van Hentenryck）—— 最推荐，专讲 MIP / 约束规划 / 局部搜索，带编程作业</li>
+        <li><b>OR-Tools 官方教程</b> —— 动手主线，免费、有完整代码</li>
+        <li>Coursera《Linear and Integer Programming》（CU Boulder）</li>
+        <li>MIT OCW 15.053 Optimization Methods in Business Analytics</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ 统计 ============ -->
+  <section id="v-stats" class="view">
+    <h2>打卡总览</h2>
+    <div class="kpis">
+      <div class="kpi"><div class="n" id="s-streak">0</div><div class="l">连续打卡(天)</div></div>
+      <div class="kpi"><div class="n" id="s-days">0</div><div class="l">累计打卡(天)</div></div>
+      <div class="kpi"><div class="n" id="s-rate">0%</div><div class="l">近 7 天完成率</div></div>
+    </div>
+
+    <h2>最近 14 天</h2>
+    <div class="card"><div class="grid7" id="s-grid"></div>
+      <div class="note" style="margin-bottom:0">颜色越深完成度越高；蓝框是今天。<b>连续打卡</b>按「当天任务全部完成」计算。</div>
+    </div>
+
+    <h2>各模块累计</h2>
+    <div class="card" id="s-modules"></div>
+
+    <h2>设置</h2>
+    <details open>
+      <summary>开学第一周的日期</summary>
+      <div class="body">
+        <p style="font-size:13.5px;color:var(--muted)">用于计算当前是第几周、以及单周 / 双周。<b>请填「第 1 周的周一」的日期。</b></p>
+        <input type="date" id="set-start">
+        <div class="row"><button id="set-save">保存</button></div>
+        <div id="set-preview" class="note"></div>
+      </div>
+    </details>
+
+    <details>
+      <summary>数据备份与迁移</summary>
+      <div class="body">
+        <p style="font-size:13.5px;color:var(--muted)">打卡数据存在<b>本机浏览器</b>里。换手机 / 换浏览器时，用下面两个按钮搬过去。</p>
+        <div class="row">
+          <button id="btn-export">导出备份（JSON）</button>
+          <button id="btn-import">导入备份</button>
+        </div>
+        <input type="file" id="file-in" accept="application/json,.json" style="display:none">
+        <div class="row"><button id="btn-reset" class="danger">清空全部打卡数据</button></div>
+        <div class="note">导出的 JSON 可以直接发到微信文件传输助手，在手机上导入即可。</div>
+      </div>
+    </details>
+
+    <details>
+      <summary>怎么装到手机上</summary>
+      <div class="body">
+        <ol style="font-size:13.5px">
+          <li>把这个页面<b>部署到网上</b>（见 README），拿到一个网址</li>
+          <li>手机浏览器打开该网址</li>
+          <li>iPhone Safari：<b>分享 → 添加到主屏幕</b>；Android Chrome：<b>⋮ → 添加到主屏幕</b></li>
+          <li>之后像 App 一样点开即用，支持离线</li>
+        </ol>
+        <div class="note">打卡数据不会自动在手机和电脑之间同步。<b>要跨设备看，用上面的「导出 / 导入」。</b></div>
+      </div>
+    </details>
+  </section>
+
+  <footer>优化方向 · 本地打卡 · 数据只存在你自己的设备上</footer>
+</main>
+
+<nav>
+  <div class="nav">
+    <button data-v="today" class="on"><span class="g">◎</span>今日</button>
+    <button data-v="schedule"><span class="g">▤</span>课表</button>
+    <button data-v="plan"><span class="g">◈</span>计划</button>
+    <button data-v="res"><span class="g">◇</span>资源</button>
+    <button data-v="stats"><span class="g">▣</span>统计</button>
+  </div>
+</nav>
+
+<script>
+"use strict";
+/* ============================== 数据 ============================== */
+const PERIODS = {1:["08:00","09:50"],2:["10:10","12:00"],3:["14:00","15:50"],4:["16:10","18:00"],5:["19:00","20:50"]};
+const WEEKNAME = {0:"周日",1:"周一",2:"周二",3:"周三",4:"周四",5:"周五",6:"周六"};
+
+// 课表：0=周日 … 6=周六。even:true = 仅双周；odd:true = 仅单周
+const SCHEDULE = {
+  0: [],
+  1: [{p:3,name:"数理统计",room:"中心理综楼203d"},
+      {p:4,name:"随机过程基础",room:"中心理综楼413d"}],
+  2: [{p:2,name:"证券投资学",room:"中心理综楼500"},
+      {p:3,name:"国际金融（英语）",room:"中心数学楼107"},
+      {p:5,name:"趣味热学（科技素养）",room:"中心理综楼413d"}],
+  3: [{p:1,name:"数理统计",room:"中心理综楼203d"},
+      {p:2,name:"运筹学",room:"中心理综楼315d"},
+      {p:5,name:"随机过程基础",room:"中心理综楼113d"}],
+  4: [{p:3,name:"证券投资学",room:"中心公教楼205d",even:true}],
+  5: [{p:1,name:"运筹学",room:"中心理综楼315d",even:true},
+      {p:5,name:"生物多样性与人类（生命健康）",room:"中心理综楼113d"}],
+  6: []
+};
+
+// 每日任务：0=周日 … 6=周六
+const TASKS = {
+  0:[{id:"en-vocab",m:"英语",n:"词汇",d:"新词 50 + 复习前日",min:15},
+     {id:"en-write",m:"英语",n:"写作 / 翻译",d:"1 篇",min:25},
+     {id:"or-algebra",m:"竞赛",n:"高代 / 真题（上午）",d:"钱吉林高代题解精粹",min:120},
+     {id:"eng-project",m:"工程",n:"项目推进（下午）",d:"投资组合优化 / GitHub 仓库",min:150}],
+  1:[{id:"en-vocab",m:"英语",n:"词汇",d:"新词 50 + 复习前日",min:15},
+     {id:"en-listen",m:"英语",n:"听力精听",d:"真题听力 3 遍：做题 → 逐句听写 → 对照原文",min:25}],
+  2:[{id:"en-vocab",m:"英语",n:"词汇",d:"新词 50 + 复习前日",min:15},
+     {id:"en-read",m:"英语",n:"仔细阅读",d:"1 篇：做题 + 逐句精读 + 生词入库",min:25},
+     {id:"or-calc",m:"竞赛",n:"数分专题（晚）",d:"裴礼文《数学分析中的典型问题与方法》",min:120}],
+  3:[{id:"en-vocab",m:"英语",n:"词汇",d:"新词 50 + 复习前日",min:15},
+     {id:"en-listen",m:"英语",n:"听力精听",d:"真题听力 3 遍",min:25}],
+  4:[{id:"en-vocab",m:"英语",n:"词汇",d:"新词 50 + 复习前日",min:15},
+     {id:"en-read",m:"英语",n:"仔细阅读",d:"1 篇 + 精读",min:25},
+     {id:"or-drill",m:"竞赛",n:"数分 / 高代刷题（晚）",d:"钱吉林题解精粹",min:120}],
+  5:[{id:"en-vocab",m:"英语",n:"词汇",d:"新词 50 + 复习前日",min:15},
+     {id:"en-listen",m:"英语",n:"听力精听",d:"真题听力 3 遍",min:25}],
+  6:[{id:"en-vocab",m:"英语",n:"词汇",d:"新词 50 + 复习前日",min:15},
+     {id:"en-read",m:"英语",n:"仔细阅读",d:"1 篇 + 精读",min:25},
+     {id:"or-calc",m:"竞赛",n:"数分（上午）",d:"裴礼文 / 历年真题",min:120},
+     {id:"eng-ortools",m:"工程",n:"OR-Tools 练手（下午）",d:"官方教程逐个跑通模型",min:120}]
+};
+
+const MILESTONES = [
+  {n:"数学竞赛报名截止",s:"双渠道：赛氪 + 省科协",d:"2026-10-12",key:true},
+  {n:"数学竞赛初赛",s:"9:00–11:30，数分50% + 高代35% + 解几15%",d:"2026-11-14",key:true},
+  {n:"六级考试",s:"目标 550+（具体日期以官方通知为准）",d:null},
+  {n:"夏令营",s:"AMSS、中科大、南开、同济、武大、中山",d:null},
+  {n:"预推免（主战场）",s:"名额更多、对跨背景包容度更高",d:null}
+];
+
+/* ============================== 存储 ============================== */
+const KEY = "orstudy.v1";
+const DEF = () => ({settings:{semesterStart:"2026-09-07"},checkins:{},extra:{}});
+let DB;
+try{ DB = Object.assign(DEF(), JSON.parse(localStorage.getItem(KEY)||"{}")); }
+catch(e){ DB = DEF(); }
+if(!DB.settings) DB.settings = {semesterStart:"2026-09-07"};
+if(!DB.checkins) DB.checkins = {};
+if(!DB.extra) DB.extra = {};
+const save = () => { try{ localStorage.setItem(KEY, JSON.stringify(DB)); }catch(e){ alert("保存失败：浏览器存储不可用"); } };
+
+/* ============================== 工具 ============================== */
+const pad = n => String(n).padStart(2,"0");
+const ymd = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const parseYmd = s => { const [y,m,dd]=s.split("-").map(Number); return new Date(y,m-1,dd); };
+const midnight = d => { const x=new Date(d); x.setHours(0,0,0,0); return x; };
+
+function weekInfo(date){
+  const start = midnight(parseYmd(DB.settings.semesterStart));
+  const cur = midnight(date);
+  const days = Math.round((cur-start)/86400000);
+  const wk = Math.floor(days/7)+1;
+  const started = days >= 0;
+  return {week:wk, started, odd: started ? (wk%2===1) : null};
+}
+function shownClasses(dayIdx, isOdd){
+  return (SCHEDULE[dayIdx]||[]).filter(c=>{
+    if(c.even) return isOdd === false;
+    if(c.odd)  return isOdd === true;
+    return true;
+  }).sort((a,b)=>a.p-b.p);
+}
+function tasksFor(dayIdx){ return TASKS[dayIdx]||[]; }
+function doneList(dateStr){ return DB.checkins[dateStr] || (DB.checkins[dateStr]=[]); }
+function isDone(dateStr,id){ return (DB.checkins[dateStr]||[]).indexOf(id)>=0; }
+function toggle(dateStr,id){
+  const l = DB.checkins[dateStr] || (DB.checkins[dateStr]=[]);
+  const i = l.indexOf(id);
+  if(i>=0) l.splice(i,1); else l.push(id);
+  if(!l.length) delete DB.checkins[dateStr];
+  save();
+}
+function dayStats(dateStr){
+  const idx = parseYmd(dateStr).getDay();
+  const total = tasksFor(idx).length + ((DB.extra[dateStr]||[]).length);
+  const done = (DB.checkins[dateStr]||[]).length;
+  return {done, total, full: total>0 && done>=total};
+}
+function streak(){
+  let n=0; const d = midnight(new Date());
+  if(!dayStats(ymd(d)).full) d.setDate(d.getDate()-1);
+  for(let i=0;i<400;i++){
+    if(dayStats(ymd(d)).full){ n++; d.setDate(d.getDate()-1); } else break;
+  }
+  return n;
+}
+function totalDays(){
+  return Object.keys(DB.checkins).filter(k=>dayStats(k).full).length;
+}
+function moduleTotals(){
+  const acc = {};
+  Object.keys(DB.checkins).forEach(ds=>{
+    const idx = parseYmd(ds).getDay();
+    const all = tasksFor(idx).concat((DB.extra[ds]||[]).map(e=>({m:"其他",min:0,id:e.id})));
+    (DB.checkins[ds]||[]).forEach(id=>{
+      const t = all.find(x=>x.id===id);
+      if(!t) return;
+      acc[t.m] = acc[t.m] || {count:0,min:0};
+      acc[t.m].count++; acc[t.m].min += (t.min||0);
+    });
+  });
+  return acc;
+}
+
+/* ============================== 渲染 ============================== */
+function renderToday(){
+  const now = new Date(), todayStr = ymd(now), idx = now.getDay();
+  const wi = weekInfo(now);
+
+  document.getElementById("td-date").textContent =
+    (now.getMonth()+1)+"月"+now.getDate()+"日 · "+WEEKNAME[idx];
+  let wkTxt;
+  if(!wi.started) wkTxt = "尚未到设定的开学第一周（去「统计 → 设置」调整）";
+  else wkTxt = "第 "+wi.week+" 周 · "+(wi.odd?"单周":"双周");
+  document.getElementById("td-week").textContent = wkTxt;
+  document.getElementById("hdsub").textContent = wi.started
+    ? ("第 "+wi.week+" 周 · "+(wi.odd?"单周":"双周")) : "周次未设置";
+
+  // 课
+  const isOdd = wi.started ? wi.odd : true;
+  const cs = shownClasses(idx, isOdd);
+  const box = document.getElementById("td-classes");
+  if(!cs.length){
+    box.innerHTML = '<div style="color:var(--muted);font-size:14px">今天没课 —— 这是整块时间，安排给工程实践或竞赛冲刺。</div>';
+  }else{
+    const nowMin = now.getHours()*60+now.getMinutes();
+    box.innerHTML = cs.map(c=>{
+      const [s,e] = PERIODS[c.p];
+      const sMin = +s.slice(0,2)*60 + +s.slice(3), eMin = +e.slice(0,2)*60 + +e.slice(3);
+      const live = nowMin>=sMin && nowMin<=eMin;
+      return '<div class="cls'+(live?" now":"")+'">'+
+        '<div class="t">第'+c.p+'节<br>'+s+'–'+e+'</div>'+
+        '<div><div class="n">'+c.name+(live?'<span class="tag">进行中</span>':'')+'</div>'+
+        '<div class="r">'+c.room+'</div></div></div>';
+    }).join("");
+  }
+
+  // 任务
+  const ts = tasksFor(idx);
+  const extras = DB.extra[todayStr]||[];
+  const tb = document.getElementById("td-tasks");
+  if(!ts.length && !extras.length){
+    tb.innerHTML = '<div style="color:var(--muted);font-size:14px">今天没有固定任务。</div>';
+  }else{
+    tb.innerHTML = ts.map(t=>{
+      const d = isDone(todayStr,t.id);
+      return '<div class="task'+(d?" done":"")+'" data-id="'+t.id+'">'+
+        '<div class="box">'+(d?"✓":"")+'</div><div style="flex:1">'+
+        '<div class="n">'+t.n+'</div><div class="d">'+t.d+'</div>'+
+        '<div class="m"><span class="chip '+t.m+'">'+t.m+'</span> 约 '+t.min+' 分钟</div>'+
+        '</div></div>';
+    }).join("") + extras.map(e=>{
+      const d = isDone(todayStr,e.id);
+      return '<div class="task'+(d?" done":"")+'" data-id="'+e.id+'">'+
+        '<div class="box">'+(d?"✓":"")+'</div><div style="flex:1">'+
+        '<div class="n">'+e.n+'</div><div class="m"><span class="chip">额外</span></div>'+
+        '</div></div>';
+    }).join("");
+    tb.querySelectorAll(".task").forEach(el=>{
+      el.addEventListener("click",()=>{ toggle(todayStr, el.dataset.id); renderAll(); });
+    });
+  }
+
+  // 额外任务列表
+  const el2 = document.getElementById("extra-list");
+  el2.innerHTML = extras.map(e=>
+    '<div class="task"><div style="flex:1"><div class="n" style="font-weight:500;font-size:14px">'+e.n+'</div></div>'+
+    '<button class="iconbtn" data-del="'+e.id+'" style="font-size:12px">删除</button></div>'
+  ).join("");
+  el2.querySelectorAll("[data-del]").forEach(b=>{
+    b.addEventListener("click",()=>{
+      DB.extra[todayStr] = (DB.extra[todayStr]||[]).filter(x=>x.id!==b.dataset.del);
+      const l = DB.checkins[todayStr]||[]; const i=l.indexOf(b.dataset.del); if(i>=0) l.splice(i,1);
+      if(!l.length) delete DB.checkins[todayStr];
+      save(); renderAll();
+    });
+  });
+
+  // KPI
+  const st = dayStats(todayStr);
+  document.getElementById("k-done").textContent = st.done+"/"+st.total;
+  document.getElementById("k-streak").textContent = streak();
+  document.getElementById("k-total").textContent = totalDays();
+
+  // 倒计时
+  renderMilestones("td-milestones", true);
+}
+
+function renderMilestones(elId, compact){
+  const today = midnight(new Date());
+  document.getElementById(elId).innerHTML = MILESTONES.map(m=>{
+    let right = '<span class="cd pass">待定</span>';
+    if(m.d){
+      const target = midnight(parseYmd(m.d));
+      const days = Math.round((target-today)/86400000);
+      let cls = "cd";
+      let txt;
+      if(days>0){ txt = days+" 天"; if(days<=30) cls+=" soon"; }
+      else if(days===0){ txt = "就是今天"; cls+=" soon"; }
+      else { txt = "已过"; cls+=" pass"; }
+      right = '<span class="'+cls+'">'+txt+'</span>';
+    }
+    const dateTxt = m.d ? (" · "+m.d) : "";
+    return '<div class="ml"><div><div class="n">'+
+      (m.key?'★ ':'')+m.n+'</div><div class="s">'+m.s+dateTxt+'</div></div>'+right+'</div>';
+  }).join("");
+}
+
+let schMode = "auto";
+function renderSchedule(){
+  const now = new Date();
+  const wi = weekInfo(now);
+  let isOdd, label;
+  if(schMode === "auto"){ isOdd = wi.started ? wi.odd : true; label = wi.started ? ("本周（第 "+wi.week+" 周 · "+(isOdd?"单周":"双周")+"）") : "本周（周次未设置，暂按单周显示）"; }
+  else if(schMode === "odd"){ isOdd = true; label = "预览：单周"; }
+  else { isOdd = false; label = "预览：双周"; }
+  document.getElementById("seg-hint").textContent = label + " — 单周＝第 1、3、5… 周，双周＝第 2、4、6… 周";
+
+  const order = [1,2,3,4,5,6,0];
+  document.getElementById("sch-list").innerHTML = order.map(d=>{
+    const cs = shownClasses(d, isOdd);
+    const isToday = now.getDay()===d && schMode==="auto";
+    const h = '<div class="h"><span>'+WEEKNAME[d]+(isToday?' <span class="tag" style="border-style:solid">今天</span>':'')+'</span>'+
+      '<span class="w">'+(cs.length? cs.length+" 节":"无课")+'</span></div>';
+    if(!cs.length) return '<div class="day free">'+h+'</div>';
+    return '<div class="day">'+h+ cs.map(c=>
+      '<div class="cls"><div class="t">第'+c.p+'节<br>'+PERIODS[c.p][0]+'–'+PERIODS[c.p][1]+'</div>'+
+      '<div><div class="n">'+c.name+'</div><div class="r">'+c.room+
+      (c.even?'　<b style="color:var(--c-contest)">仅双周</b>':'')+
+      (c.odd?'　<b style="color:var(--c-contest)">仅单周</b>':'')+
+      '</div></div></div>').join("") + '</div>';
+  }).join("");
+}
+
+function renderStats(){
+  document.getElementById("s-streak").textContent = streak();
+  document.getElementById("s-days").textContent = totalDays();
+
+  // 近 7 天完成率
+  let hit=0, sum=0;
+  for(let i=0;i<7;i++){
+    const d=new Date(); d.setDate(d.getDate()-i);
+    const s=dayStats(ymd(d));
+    if(s.total){ sum += Math.min(1, s.done/s.total); }
+    if(s.full) hit++;
+  }
+  document.getElementById("s-rate").textContent = sum? Math.round(sum/7*100)+"%" : "0%";
+
+  // 14 天格子
+  const cells=[];
+  for(let i=13;i>=0;i--){
+    const d=new Date(); d.setDate(d.getDate()-i);
+    const ds=ymd(d), s=dayStats(ds);
+    let cls="c";
+    if(s.full) cls+=" full";
+    else if(s.done>0) cls+=" part";
+    if(i===0) cls+=" today";
+    const txt = (d.getMonth()+1)+"/"+d.getDate();
+    cells.push('<div><div class="'+cls+'">'+(s.done||"")+'</div><div class="d">'+txt+'</div></div>');
+  }
+  document.getElementById("s-grid").innerHTML = cells.join("");
+
+  // 模块累计
+  const mt = moduleTotals();
+  const keys = Object.keys(mt);
+  const el = document.getElementById("s-modules");
+  if(!keys.length){ el.innerHTML = '<div style="color:var(--muted);font-size:14px">还没有记录。</div>'; }
+  else{
+    el.innerHTML = '<table class="tbl"><tr><th>模块</th><th>完成次数</th><th>累计时长</th></tr>'+
+      keys.sort().map(k=>{
+        const h = Math.round(mt[k].min/60*10)/10;
+        return '<tr><td><span class="chip '+k+'">'+k+'</span></td><td>'+mt[k].count+' 次</td><td>'+(h>=0.1? h+" 小时":"—")+'</td></tr>';
+      }).join("")+'</table>';
+  }
+
+  document.getElementById("set-start").value = DB.settings.semesterStart;
+  const wi = weekInfo(new Date());
+  document.getElementById("set-preview").textContent = wi.started
+    ? ("按当前设置：今天是第 "+wi.week+" 周（"+(wi.odd?"单周":"双周")+"）")
+    : "按当前设置：今天在第 1 周之前，请检查日期。";
+}
+
+function renderAll(){ renderToday(); renderSchedule(); renderStats(); }
+
+/* ============================== 交互 ============================== */
+document.querySelectorAll(".nav button").forEach(b=>{
+  b.addEventListener("click",()=>{
+    document.querySelectorAll(".nav button").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on");
+    document.querySelectorAll(".view").forEach(v=>v.classList.remove("on"));
+    document.getElementById("v-"+b.dataset.v).classList.add("on");
+    window.scrollTo({top:0,behavior:"instant"});
+    renderAll();
+  });
+});
+document.querySelectorAll("#seg-week button").forEach(b=>{
+  b.addEventListener("click",()=>{
+    document.querySelectorAll("#seg-week button").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on"); schMode = b.dataset.w; renderSchedule();
+  });
+});
+document.getElementById("btnweek").addEventListener("click",()=>{
+  document.querySelector('.nav button[data-v="stats"]').click();
+  setTimeout(()=>{ document.getElementById("set-start").scrollIntoView({behavior:"smooth",block:"center"}); }, 120);
+});
+document.getElementById("extra-add").addEventListener("click",()=>{
+  const inp = document.getElementById("extra-in");
+  const v = inp.value.trim(); if(!v) return;
+  const todayStr = ymd(new Date());
+  const id = "x"+Date.now();
+  (DB.extra[todayStr] = DB.extra[todayStr]||[]).push({id,n:v});
+  inp.value=""; save(); renderAll();
+});
+document.getElementById("extra-in").addEventListener("keydown",e=>{ if(e.key==="Enter") document.getElementById("extra-add").click(); });
+
+document.getElementById("set-save").addEventListener("click",()=>{
+  const v = document.getElementById("set-start").value;
+  if(!v) return alert("请选择日期");
+  DB.settings.semesterStart = v; save(); renderAll();
+  alert("已保存。今天是第 "+weekInfo(new Date()).week+" 周。");
+});
+document.getElementById("btn-export").addEventListener("click",()=>{
+  const blob = new Blob([JSON.stringify(DB,null,2)],{type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "优化方向-打卡备份-"+ymd(new Date())+".json";
+  a.click(); URL.revokeObjectURL(a.href);
+});
+document.getElementById("btn-import").addEventListener("click",()=>document.getElementById("file-in").click());
+document.getElementById("file-in").addEventListener("change",e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try{
+      const o = JSON.parse(r.result);
+      if(!o.checkins) throw new Error("格式不对");
+      DB = Object.assign(DEF(), o); save(); renderAll();
+      alert("导入成功。");
+    }catch(err){ alert("导入失败："+err.message); }
+  };
+  r.readAsText(f); e.target.value="";
+});
+document.getElementById("btn-reset").addEventListener("click",()=>{
+  if(confirm("确定清空全部打卡数据？此操作不可撤销，建议先导出备份。")){
+    DB = DEF(); save(); renderAll(); alert("已清空。");
+  }
+});
+
+renderAll();
+if("serviceWorker" in navigator && location.protocol.startsWith("http")){
+  navigator.serviceWorker.register("sw.js").catch(()=>{});
+}
+</script>
+</body>
+</html>
