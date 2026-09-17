@@ -12,6 +12,7 @@ const logic = js.slice(0, cut);
 const stubs = `
 var localStorage = { _d:{}, getItem(k){return this._d[k]||null}, setItem(k,v){this._d[k]=v} };
 function alert(){} function confirm(){return false}
+var renderAll = function(){};
 `;
 
 const tests = `
@@ -116,6 +117,63 @@ eq("WEEKNAME 7 天齐全", Object.keys(WEEKNAME).length, 7);
 eq("PERIODS 5 节齐全", Object.keys(PERIODS).length, 5);
 eq("第1节 08:00 开始", PERIODS[1][0], "08:00");
 eq("第5节 20:50 结束", PERIODS[5][1], "20:50");
+
+console.log("\\n【9】数据健壮性（sanitize / loadDB / save）");
+eq("sanitize(null) 得到空库", Object.keys(sanitize(null).checkins).length, 0);
+eq("sanitize 过滤坏 checkins 类型", Object.keys(sanitize({checkins:"bad"}).checkins).length, 0);
+eq("sanitize 过滤非字符串任务id", sanitize({checkins:{"2026-09-17":["a",123,null]}}).checkins["2026-09-17"].length, 1);
+eq("sanitize 过滤坏 extra 条目", sanitize({extra:{"2026-09-17":[{id:"x",n:"y"},{bad:1},null]}}).extra["2026-09-17"].length, 1);
+eq("sanitize 保留 settings", sanitize({settings:{semesterStart:"2026-09-01"}}).settings.semesterStart, "2026-09-01");
+
+// 主存储损坏 → 回退备份
+localStorage._d = {
+  "orstudy.v1": "{损坏的JSON",
+  "orstudy.v1.backup": JSON.stringify({checkins:{"2026-09-16":["en-vocab"]},extra:{},settings:{semesterStart:"2026-09-07"}})
+};
+DB = loadDB();
+eq("主存储损坏时从备份恢复", DB.checkins["2026-09-16"] && DB.checkins["2026-09-16"].length, 1);
+
+// 主存储正常时不用备份
+localStorage._d = {
+  "orstudy.v1": JSON.stringify({checkins:{"2026-09-15":["en-read"]},extra:{},settings:{semesterStart:"2026-09-07"}}),
+  "orstudy.v1.backup": JSON.stringify({checkins:{"2026-09-14":["en-vocab"]},extra:{},settings:{}})
+};
+DB = loadDB();
+eq("主存储正常时优先主存储", Object.keys(DB.checkins)[0], "2026-09-15");
+
+// save 写两个 key
+DB = DEF(); DB.checkins["2026-09-17"] = ["en-vocab"];
+save();
+eq("save 写主存储", JSON.parse(localStorage._d["orstudy.v1"]).checkins["2026-09-17"].length, 1);
+eq("save 写恢复备份", JSON.parse(localStorage._d["orstudy.v1.backup"]).checkins["2026-09-17"].length, 1);
+
+console.log("\\n【10】一键全打卡（dayTaskIds / setDayAll）");
+DB.checkins = {}; DB.extra = {};
+eq("周四 dayTaskIds = 3 项", dayTaskIds("2026-09-17").length, 3);
+setDayAll("2026-09-17");
+eq("全打卡后 full=true", dayStats("2026-09-17").full, true);
+eq("全打卡后 done=3", dayStats("2026-09-17").done, 3);
+setDayAll("2026-09-17");
+eq("再按一次全取消", dayStats("2026-09-17").done, 0);
+eq("取消后不残留键", ("2026-09-17" in DB.checkins), false);
+// 含额外任务
+DB.extra["2026-09-17"] = [{id:"x1",n:"写 README"}];
+setDayAll("2026-09-17");
+eq("额外任务也一起打卡", dayStats("2026-09-17").done, 4);
+setDayAll("2026-09-17");
+eq("再次全取消(含额外)", dayStats("2026-09-17").done, 0);
+DB.extra = {};
+
+console.log("\\n【11】课表上周/下周的奇偶推导");
+DB.settings.semesterStart = "2026-09-07";
+// 2026-09-17 是第 2 周（双周）。offset +1 → 第 3 周（单周）
+const w2 = weekInfo(D("2026-09-17"));
+eq("本周=2", w2.week, 2);
+eq("offset+1 → 第3周·单周", (w2.week+1)%2===1, true);
+eq("offset-1 → 第1周·单周", (w2.week-1)%2===1, true);
+eq("下周(单周)·周四无课", shownClasses(4, (w2.week+1)%2===1).length, 0);
+eq("下周(单周)·周五只有生物多样性", shownClasses(5, (w2.week+1)%2===1).map(c=>c.name).join(","), "生物多样性与人类（生命健康）");
+eq("上周(单周)·周五无运筹学", shownClasses(5, (w2.week-1)%2===1).some(c=>c.name==="运筹学"), false);
 
 console.log("\\n" + "=".repeat(46));
 console.log("  通过 " + pass + " 项，失败 " + fail + " 项");

@@ -94,6 +94,7 @@ nav{
 .task .m{font-size:11px;color:var(--muted);margin-top:3px}
 .bar{height:9px;border-radius:99px;background:var(--line);overflow:hidden;margin:10px 0 4px}
 .bar > i{display:block;height:100%;background:var(--accent);border-radius:99px;transition:width .3s}
+.bar.full > i{background:var(--ok)}
 .grid7{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin:10px 0}
 .grid7 .d{text-align:center;font-size:11px;color:var(--muted)}
 .grid7 .c{aspect-ratio:1;border-radius:9px;background:var(--line);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--muted)}
@@ -173,7 +174,14 @@ input[type=date]{padding:8px 10px;border-radius:10px;border:1px solid var(--line
     <div class="card" id="td-classes"></div>
 
     <h2>今天做什么</h2>
-    <div class="card" id="td-tasks"></div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px;color:var(--muted)">
+        <span id="td-progress-txt">—</span>
+        <button class="iconbtn" id="btn-all">全部完成</button>
+      </div>
+      <div class="bar" id="td-progress-wrap" style="margin-top:8px;margin-bottom:4px"><i id="td-progress-bar" style="width:0%"></i></div>
+      <div id="td-tasks"></div>
+    </div>
 
     <div class="card">
       <h3 style="margin-top:0">加一条今天的额外任务</h3>
@@ -191,10 +199,15 @@ input[type=date]{padding:8px 10px;border-radius:10px;border:1px solid var(--line
   <!-- ============ 课表 ============ -->
   <section id="v-schedule" class="view">
     <h2>课表</h2>
-    <div class="seg" id="seg-week">
-      <button data-w="auto" class="on">本周</button>
-      <button data-w="odd">单周</button>
-      <button data-w="even">双周</button>
+    <div class="seg" id="seg-off">
+      <button data-o="-1">◀ 上周</button>
+      <button data-o="0" class="on">本周</button>
+      <button data-o="1">下周 ▶</button>
+    </div>
+    <div class="seg" id="seg-par" style="margin-top:8px">
+      <button data-p="auto" class="on">按实际单双周</button>
+      <button data-p="odd">只看单周课</button>
+      <button data-p="even">只看双周课</button>
     </div>
     <div class="note" id="seg-hint"></div>
     <div class="card" id="sch-list"></div>
@@ -447,7 +460,7 @@ uv run python -c "from ortools.linear_solver import pywraplp; print('OK')"</code
         </div>
         <input type="file" id="file-in" accept="application/json,.json" style="display:none">
         <div class="row"><button id="btn-reset" class="danger">清空全部打卡数据</button></div>
-        <div class="note">导出的 JSON 可以直接发到微信文件传输助手，在手机上导入即可。</div>
+        <div class="note">导出的 JSON 可以直接发到微信文件传输助手，在手机上导入即可。<br>另外：每次保存都会自动在本机留一份<b>恢复备份</b>，主数据意外损坏时自动回退，无需手动处理。</div>
       </div>
     </details>
 
@@ -535,14 +548,43 @@ const MILESTONES = [
 
 /* ============================== 存储 ============================== */
 const KEY = "orstudy.v1";
+const KEY_BAK = "orstudy.v1.backup";
 const DEF = () => ({settings:{semesterStart:"2026-09-07"},checkins:{},extra:{}});
-let DB;
-try{ DB = Object.assign(DEF(), JSON.parse(localStorage.getItem(KEY)||"{}")); }
-catch(e){ DB = DEF(); }
-if(!DB.settings) DB.settings = {semesterStart:"2026-09-07"};
-if(!DB.checkins) DB.checkins = {};
-if(!DB.extra) DB.extra = {};
-const save = () => { try{ localStorage.setItem(KEY, JSON.stringify(DB)); }catch(e){ alert("保存失败：浏览器存储不可用"); } };
+
+/* 清洗任意来源的数据为合法结构，防止损坏的存储把应用搞崩 */
+function sanitize(raw){
+  const out = DEF();
+  const r = (raw && typeof raw === "object") ? raw : {};
+  out.settings = Object.assign(out.settings, (r.settings && typeof r.settings === "object") ? r.settings : {});
+  if(r.checkins && typeof r.checkins === "object" && !Array.isArray(r.checkins)){
+    Object.keys(r.checkins).forEach(k=>{
+      if(Array.isArray(r.checkins[k])) out.checkins[k] = r.checkins[k].filter(x=>typeof x==="string");
+    });
+  }
+  if(r.extra && typeof r.extra === "object" && !Array.isArray(r.extra)){
+    Object.keys(r.extra).forEach(k=>{
+      if(Array.isArray(r.extra[k])) out.extra[k] = r.extra[k].filter(x=>x && typeof x.id==="string" && typeof x.n==="string");
+    });
+  }
+  return out;
+}
+/* 主存储损坏或为空时，自动回退到备份 */
+function loadDB(){
+  let raw = null;
+  try{ raw = JSON.parse(localStorage.getItem(KEY)); }catch(e){ raw = null; }
+  const db = sanitize(raw);
+  if(Object.keys(db.checkins).length || Object.keys(db.extra).length) return db;
+  try{ raw = JSON.parse(localStorage.getItem(KEY_BAK)); }catch(e){ raw = null; }
+  return sanitize(raw);
+}
+let DB = loadDB();
+const save = () => {
+  try{
+    const s = JSON.stringify(DB);
+    localStorage.setItem(KEY_BAK, s);   // 先写恢复备份，再写主存储
+    localStorage.setItem(KEY, s);
+  }catch(e){ try{ alert("保存失败：浏览器存储不可用"); }catch(_){} }
+};
 
 /* ============================== 工具 ============================== */
 const pad = n => String(n).padStart(2,"0");
@@ -605,6 +647,20 @@ function moduleTotals(){
     });
   });
   return acc;
+}
+
+/* 一键全打卡：当天所有任务全勾 / 全取消 */
+function dayTaskIds(dateStr){
+  const idx = parseYmd(dateStr).getDay();
+  return tasksFor(idx).map(t=>t.id).concat((DB.extra[dateStr]||[]).map(e=>e.id));
+}
+function setDayAll(dateStr){
+  const ids = dayTaskIds(dateStr);
+  if(!ids.length) return;
+  const allDone = ids.every(id=>isDone(dateStr,id));
+  if(allDone){ delete DB.checkins[dateStr]; }
+  else { DB.checkins[dateStr] = ids.slice(); }
+  save(); renderAll();
 }
 
 /* ============================== 渲染 ============================== */
@@ -687,6 +743,19 @@ function renderToday(){
   document.getElementById("k-streak").textContent = streak();
   document.getElementById("k-total").textContent = totalDays();
 
+  // 今日进度条 + 一键全打卡 + 完成庆祝
+  const pct = st.total ? Math.round(st.done/st.total*100) : 0;
+  const pt = document.getElementById("td-progress-txt");
+  const pb = document.getElementById("td-progress-bar");
+  const ba = document.getElementById("btn-all");
+  if(pt){ pt.textContent = st.total ? (st.done+"/"+st.total+" 已完成" + (st.full?" · 全部完成 🎉":"")) : "今天没有任务"; }
+  if(pb){ pb.style.width = pct+"%"; pb.parentElement.classList.toggle("full", st.full); }
+  if(ba){ ba.textContent = (st.total>0 && st.full) ? "取消全部" : "全部完成"; }
+  if(st.full){
+    const w = document.getElementById("td-week");
+    if(w && w.textContent.indexOf("🎉")<0) w.textContent += " · 今日全部完成 🎉";
+  }
+
   // 倒计时
   renderMilestones("td-milestones", true);
 }
@@ -711,20 +780,23 @@ function renderMilestones(elId, compact){
   }).join("");
 }
 
-let schMode = "auto";
+let sch = {off:0, par:null};
 function renderSchedule(){
   const now = new Date();
   const wi = weekInfo(now);
-  let isOdd, label;
-  if(schMode === "auto"){ isOdd = wi.started ? wi.odd : true; label = wi.started ? ("本周（第 "+wi.week+" 周 · "+(isOdd?"单周":"双周")+"）") : "本周（周次未设置，暂按单周显示）"; }
-  else if(schMode === "odd"){ isOdd = true; label = "预览：单周"; }
-  else { isOdd = false; label = "预览：双周"; }
+  const wk = wi.week + sch.off;
+  const isOdd = sch.par ? (sch.par==="odd") : (wi.started ? (wk%2===1) : true);
+  const offName = sch.off===0 ? "本周" : (sch.off<0 ? "上周" : "下周");
+  const parName = sch.par ? (sch.par==="odd"?"只看单周课":"只看双周课") : "按实际单双周";
+  const label = wi.started
+    ? (offName+"（第 "+wk+" 周 · "+(isOdd?"单周":"双周")+"）· "+parName)
+    : (offName+"（周次未设置，暂按单周显示）");
   document.getElementById("seg-hint").textContent = label + " — 单周＝第 1、3、5… 周，双周＝第 2、4、6… 周";
 
   const order = [1,2,3,4,5,6,0];
   document.getElementById("sch-list").innerHTML = order.map(d=>{
     const cs = shownClasses(d, isOdd);
-    const isToday = now.getDay()===d && schMode==="auto";
+    const isToday = now.getDay()===d && sch.off===0;
     const h = '<div class="h"><span>'+WEEKNAME[d]+(isToday?' <span class="tag" style="border-style:solid">今天</span>':'')+'</span>'+
       '<span class="w">'+(cs.length? cs.length+" 节":"无课")+'</span></div>';
     if(!cs.length) return '<div class="day free">'+h+'</div>';
@@ -798,10 +870,18 @@ document.querySelectorAll(".nav button").forEach(b=>{
     renderAll();
   });
 });
-document.querySelectorAll("#seg-week button").forEach(b=>{
+document.querySelectorAll("#seg-off button").forEach(b=>{
   b.addEventListener("click",()=>{
-    document.querySelectorAll("#seg-week button").forEach(x=>x.classList.remove("on"));
-    b.classList.add("on"); schMode = b.dataset.w; renderSchedule();
+    document.querySelectorAll("#seg-off button").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on"); sch.off = Number(b.dataset.o); renderSchedule();
+  });
+});
+document.querySelectorAll("#seg-par button").forEach(b=>{
+  b.addEventListener("click",()=>{
+    document.querySelectorAll("#seg-par button").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on");
+    sch.par = (b.dataset.p==="auto") ? null : b.dataset.p;
+    renderSchedule();
   });
 });
 document.getElementById("btnweek").addEventListener("click",()=>{
@@ -817,6 +897,7 @@ document.getElementById("extra-add").addEventListener("click",()=>{
   inp.value=""; save(); renderAll();
 });
 document.getElementById("extra-in").addEventListener("keydown",e=>{ if(e.key==="Enter") document.getElementById("extra-add").click(); });
+document.getElementById("btn-all").addEventListener("click",()=>{ setDayAll(ymd(new Date())); });
 
 document.getElementById("set-save").addEventListener("click",()=>{
   const v = document.getElementById("set-start").value;
@@ -852,6 +933,8 @@ document.getElementById("btn-reset").addEventListener("click",()=>{
 });
 
 renderAll();
+// 「进行中」标记与今日状态每分钟自动刷新（不重绘统计页，保持轻量）
+setInterval(()=>{ renderToday(); renderSchedule(); }, 60000);
 if("serviceWorker" in navigator && location.protocol.startsWith("http")){
   navigator.serviceWorker.register("sw.js").catch(()=>{});
 }

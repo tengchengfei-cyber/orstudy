@@ -53,7 +53,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 class Server(http.server.ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = True
-    request_queue_size = 64
+    # 监听队列：浏览器/并发请求瞬间涌入时，队列太短会直接 ECONNREFUSED。
+    # 256 足以应付数百并发（本应用实际只有几条连接，留足余量）。
+    request_queue_size = 256
 
 
 def lan_ip() -> str:
