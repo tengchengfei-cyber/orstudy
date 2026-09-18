@@ -282,15 +282,14 @@ input[type=date]{padding:8px 10px;border-radius:10px;border:1px solid var(--line
     <div class="card">
       <table class="tbl">
         <tr><th>时段</th><th>内容</th><th>时长</th></tr>
-        <tr><td>周一–周五</td><td>英语：词汇 15 ＋ 听力/阅读 25</td><td>40 min</td></tr>
-        <tr><td>周二晚</td><td>竞赛：数分专题</td><td>2 h</td></tr>
-        <tr><td>周四晚</td><td>竞赛：数分 / 高代刷题</td><td>2 h</td></tr>
+        <tr><td>周一–周五 · 每天</td><td>英语：词汇 15 ＋ 听力/阅读 25</td><td>40 min</td></tr>
+        <tr><td>周一–周五 · 每晚</td><td><b>数学</b>：数分专题 / 刷题 / 高代（各天已分配）</td><td>2 h</td></tr>
         <tr><td>周六上午</td><td>竞赛：数分</td><td>2 h</td></tr>
         <tr><td>周六下午</td><td>工程：OR-Tools 练手</td><td>2 h</td></tr>
         <tr><td>周日上午</td><td>竞赛：高代 / 真题</td><td>2 h</td></tr>
         <tr><td>周日下午</td><td>工程：项目推进</td><td>2–3 h</td></tr>
       </table>
-      <div class="note">合计 ≈15 h/周。竞赛考完后重排：英语 40% / 工程 60%，工程逐步升到 80%。</div>
+      <div class="note">合计 ≈18 h/周（数学 12h ＋ 英语 3.3h ＋ 工程 4–5h）。<b>偏重，注意别挤占课程</b> —— 可在「✎ 编辑任务」里随时给某天减量。竞赛考完（11.14）后：数学切回 40% 强度，重心移向工程。</div>
     </div>
 
     <h2>关键节点</h2>
@@ -497,10 +496,25 @@ uv run python -c "from ortools.linear_solver import pywraplp; print('OK')"</code
     <details>
       <summary>跨设备同步（云端）</summary>
       <div class="body">
-        <p style="font-size:13.5px;color:var(--muted)">打卡数据自动在多个设备间保持一致（<b>最后写入胜出</b>）。需要先部署一个同步后端（Cloudflare Worker 或自建服务器），部署方法见 README「跨设备同步」。</p>
-        <div class="frow">
-          <input id="sy-url" class="full" placeholder="后端地址，如 https://orstudy-sync.xxx.workers.dev" autocomplete="off">
-          <input id="sy-key" class="full" placeholder="同步密钥（自定一串长随机码，两个设备填同一个）" autocomplete="off">
+        <p style="font-size:13.5px;color:var(--muted)">打卡数据自动在多个设备间保持一致（<b>最后写入胜出</b>）。两种方式任选：<b>GitHub 存储</b>（用你的私有仓库，零新增账号，推荐）或<b>通用后端</b>（Cloudflare Worker / 自建服务器）。</p>
+        <div class="seg" id="sy-mode" style="margin:4px 0 10px">
+          <button data-m="github">GitHub 存储（推荐）</button>
+          <button data-m="generic">通用后端</button>
+        </div>
+        <div id="sy-gh">
+          <p style="font-size:12.5px;color:var(--muted);margin:0 0 8px">快照存在你的 GitHub 私有仓库文件里。令牌只保存在本机浏览器，请勿外传。令牌生成方法见 README「跨设备同步」。</p>
+          <div class="frow">
+            <input id="sy-token" class="full" type="password" placeholder="GitHub 令牌 github_pat_…" autocomplete="off">
+            <input id="sy-owner" class="full" placeholder="用户名，如 tengchengfei-cyber" autocomplete="off">
+            <input id="sy-repo" class="full" placeholder="私有仓库名，如 orstudy-sync" autocomplete="off">
+            <input id="sy-path" class="full" placeholder="文件路径，如 sync/snapshot.json" autocomplete="off">
+          </div>
+        </div>
+        <div id="sy-g" style="display:none">
+          <div class="frow">
+            <input id="sy-url" class="full" placeholder="后端地址，如 https://orstudy-sync.xxx.workers.dev" autocomplete="off">
+            <input id="sy-key" class="full" placeholder="同步密钥（自定一串长随机码，两个设备填同一个）" autocomplete="off">
+          </div>
         </div>
         <div class="row">
           <button id="sy-save">保存并同步</button>
@@ -589,17 +603,20 @@ const DEFAULT_TASKS = {
      {id:"or-algebra",m:"竞赛",n:"高代 / 真题（上午）",d:"钱吉林高代题解精粹",min:120},
      {id:"eng-project",m:"工程",n:"项目推进（下午）",d:"投资组合优化 / GitHub 仓库",min:150}],
   1:[{id:"en-vocab",m:"英语",n:"词汇",d:"新词 50 + 复习前日",min:15},
-     {id:"en-listen",m:"英语",n:"听力精听",d:"真题听力 3 遍：做题 → 逐句听写 → 对照原文",min:25}],
+     {id:"en-listen",m:"英语",n:"听力精听",d:"真题听力 3 遍：做题 → 逐句听写 → 对照原文",min:25},
+     {id:"or-calc",m:"竞赛",n:"数分专题（晚）",d:"裴礼文《数学分析中的典型问题与方法》",min:120}],
   2:[{id:"en-vocab",m:"英语",n:"词汇",d:"新词 50 + 复习前日",min:15},
      {id:"en-read",m:"英语",n:"仔细阅读",d:"1 篇：做题 + 逐句精读 + 生词入库",min:25},
      {id:"or-calc",m:"竞赛",n:"数分专题（晚）",d:"裴礼文《数学分析中的典型问题与方法》",min:120}],
   3:[{id:"en-vocab",m:"英语",n:"词汇",d:"新词 50 + 复习前日",min:15},
-     {id:"en-listen",m:"英语",n:"听力精听",d:"真题听力 3 遍",min:25}],
+     {id:"en-listen",m:"英语",n:"听力精听",d:"真题听力 3 遍",min:25},
+     {id:"or-drill",m:"竞赛",n:"数分 / 高代刷题（晚）",d:"钱吉林题解精粹",min:120}],
   4:[{id:"en-vocab",m:"英语",n:"词汇",d:"新词 50 + 复习前日",min:15},
      {id:"en-read",m:"英语",n:"仔细阅读",d:"1 篇 + 精读",min:25},
      {id:"or-drill",m:"竞赛",n:"数分 / 高代刷题（晚）",d:"钱吉林题解精粹",min:120}],
   5:[{id:"en-vocab",m:"英语",n:"词汇",d:"新词 50 + 复习前日",min:15},
-     {id:"en-listen",m:"英语",n:"听力精听",d:"真题听力 3 遍",min:25}],
+     {id:"en-listen",m:"英语",n:"听力精听",d:"真题听力 3 遍",min:25},
+     {id:"or-algebra2",m:"竞赛",n:"高代专题（晚）",d:"钱吉林《高等代数题解精粹》",min:120}],
   6:[{id:"en-vocab",m:"英语",n:"词汇",d:"新词 50 + 复习前日",min:15},
      {id:"en-read",m:"英语",n:"仔细阅读",d:"1 篇 + 精读",min:25},
      {id:"or-calc",m:"竞赛",n:"数分（上午）",d:"裴礼文 / 历年真题",min:120},
@@ -642,6 +659,7 @@ function sanitize(raw){
     });
   }
   out.updated = (typeof r.updated === "number" && isFinite(r.updated)) ? r.updated : 0;
+  out.taskSchema = (typeof r.taskSchema === "number") ? r.taskSchema : 0;
   return out;
 }
 /* 主存储损坏或为空时，自动回退到备份 */
@@ -654,6 +672,17 @@ function loadDB(){
   return sanitize(raw);
 }
 /* 自定义任务表：首次使用或导入旧数据时，用内置默认值补全。可传入 db 以便在加载路径里使用 */
+const TASK_SCHEMA = 2;
+/* v1 时代每日任务的 id 签名（迁移用：只替换「用户没改过的那些天」，自定义过的保持不动） */
+const V1_IDS = {
+  0:"en-vocab,en-write,or-algebra,eng-project",
+  1:"en-vocab,en-listen",
+  2:"en-vocab,en-read,or-calc",
+  3:"en-vocab,en-listen",
+  4:"en-vocab,en-read,or-drill",
+  5:"en-vocab,en-listen",
+  6:"en-vocab,en-read,or-calc,eng-ortools"
+};
 function ensureCustomTasks(db){
   db = db || DB;   // 防御：不传参时操作当前库
   if(!db.customTasks || typeof db.customTasks !== "object" || Array.isArray(db.customTasks)){
@@ -662,6 +691,14 @@ function ensureCustomTasks(db){
   [0,1,2,3,4,5,6].forEach(d=>{
     if(!Array.isArray(db.customTasks[d])) db.customTasks[d] = JSON.parse(JSON.stringify(DEFAULT_TASKS[d]));
   });
+  // 迁移旧默认 → 新默认（v1.4：周一/三/五新增数学任务）
+  if(!db.taskSchema || db.taskSchema < TASK_SCHEMA){
+    [0,1,2,3,4,5,6].forEach(d=>{
+      const cur = (db.customTasks[d]||[]).map(t=>t.id).join(",");
+      if(cur === V1_IDS[d]) db.customTasks[d] = JSON.parse(JSON.stringify(DEFAULT_TASKS[d]));
+    });
+    db.taskSchema = TASK_SCHEMA;
+  }
   return db;
 }
 let DB = ensureCustomTasks(loadDB());
@@ -675,9 +712,12 @@ const save = () => {
   }catch(e){ try{ alert("保存失败：浏览器存储不可用"); }catch(_){} }
 };
 
-/* ---------- 跨设备同步（LWW 最后写入胜出） ---------- */
+/* ---------- 跨设备同步（LWW 最后写入胜出） ----------
+   两种后端：
+   · generic：通用后端（Cloudflare Worker / 自建 Python），GET/PUT /<room>
+   · github：用 GitHub 私有仓库的文件存快照（Contents API，零新增账号） */
 const SYNC_KEY = "orstudy.sync.v1";
-let SYNC = {url:"", key:"", last:0, status:"未配置"};
+let SYNC = {mode:"generic", url:"", key:"", token:"", owner:"", repo:"", path:"sync/snapshot.json", last:0, status:"未配置"};
 try{ SYNC = Object.assign(SYNC, JSON.parse(localStorage.getItem(SYNC_KEY)||"{}")); }catch(e){}
 function saveSyncCfg(){ try{ localStorage.setItem(SYNC_KEY, JSON.stringify(SYNC)); }catch(e){} }
 /* 纯函数：返回 -1=拉取远端 / 1=推送本地 / 0=一致 */
@@ -685,26 +725,80 @@ function syncDecide(localT, remoteT){
   const l = Number(localT)||0, r = Number(remoteT)||0;
   return r > l ? -1 : (l > r ? 1 : 0);
 }
+/* UTF-8 安全的 base64（GitHub Contents API 需要） */
+function b64encode(s){ const bytes = new TextEncoder().encode(s); let bin=""; bytes.forEach(b=>bin+=String.fromCharCode(b)); return btoa(bin); }
+function b64decode(s){ const bin = atob(s); const bytes = Uint8Array.from(bin, c=>c.charCodeAt(0)); return new TextDecoder().decode(bytes); }
+/* GitHub GET：返回 {exists, remote, sha} */
+async function githubSyncGet(){
+  const url = "https://api.github.com/repos/"+encodeURIComponent(SYNC.owner)+"/"+encodeURIComponent(SYNC.repo)+"/contents/"+encodeURIComponent(SYNC.path);
+  const res = await fetch(url, {headers:{
+    "Authorization":"Bearer "+SYNC.token,
+    "Accept":"application/vnd.github+json",
+    "X-GitHub-Api-Version":"2022-11-28"
+  }, cache:"no-store"});
+  if(res.status === 404) return {exists:false, remote:null, sha:null};
+  if(res.status === 401) throw new Error("GitHub 令牌无效(401)");
+  if(res.status === 403) throw new Error("GitHub 拒绝(403)：检查令牌权限");
+  if(!res.ok) throw new Error("GitHub GET "+res.status);
+  const j = await res.json();
+  let remote = null;
+  if(typeof j.content === "string"){
+    try{ remote = JSON.parse(b64decode(j.content.replace(/\n/g,""))); }catch(e){ throw new Error("云端快照不是 JSON"); }
+  }
+  return {exists:true, remote, sha: j.sha};
+}
+/* GitHub PUT：需要 sha（首次为 null） */
+async function githubSyncPut(json){
+  const url = "https://api.github.com/repos/"+encodeURIComponent(SYNC.owner)+"/"+encodeURIComponent(SYNC.repo)+"/contents/"+encodeURIComponent(SYNC.path);
+  const res = await fetch(url, {method:"PUT", headers:{
+    "Authorization":"Bearer "+SYNC.token,
+    "Accept":"application/vnd.github+json",
+    "X-GitHub-Api-Version":"2022-11-28",
+    "Content-Type":"application/json"
+  }, body: JSON.stringify({
+    message: "sync "+new Date().toISOString(),
+    content: b64encode(json)
+  })});
+  if(!res.ok) throw new Error("GitHub PUT "+res.status);
+}
 async function syncNow(manual){
-  if(!SYNC.url || !SYNC.key){
+  const mode = SYNC.mode === "github" ? "github" : "generic";
+  if(mode === "generic" && (!SYNC.url || !SYNC.key)){
     SYNC.status = "未配置：先填后端地址与同步密钥";
     if(manual) renderSyncUI();
     return;
   }
-  const endpoint = SYNC.url.replace(/\/+$/,"") + "/" + encodeURIComponent(SYNC.key);
+  if(mode === "github" && (!SYNC.token || !SYNC.owner || !SYNC.repo)){
+    SYNC.status = "未配置：先填 GitHub 令牌 / 用户名 / 仓库名";
+    if(manual) renderSyncUI();
+    return;
+  }
   try{
-    const res = await fetch(endpoint, {method:"GET", cache:"no-store"});
-    if(!res.ok) throw new Error("HTTP "+res.status);
-    let remote = null;
-    try{ remote = await res.json(); }catch(e){ throw new Error("云端数据不是 JSON"); }
-    const d = syncDecide(DB.updated, remote && remote.updated);
+    let remote = null, remoteSha = null, remoteT = 0;
+    if(mode === "generic"){
+      const endpoint = SYNC.url.replace(/\/+$/,"") + "/" + encodeURIComponent(SYNC.key);
+      const res = await fetch(endpoint, {method:"GET", cache:"no-store"});
+      if(!res.ok) throw new Error("HTTP "+res.status);
+      try{ remote = await res.json(); }catch(e){ throw new Error("云端数据不是 JSON"); }
+    }else{
+      const g = await githubSyncGet();
+      remote = g.remote; remoteSha = g.sha;
+    }
+    remoteT = Number(remote && remote.updated)||0;
+    const d = syncDecide(DB.updated, remoteT);
     if(d < 0){
+      if(!remote || !remote.checkins) throw new Error("云端没有有效数据，不覆盖本地");
       DB = ensureCustomTasks(sanitize(remote));
       save(); renderAll();
       SYNC.status = "已从云端拉取";
     }else if(d > 0){
-      const put = await fetch(endpoint, {method:"PUT", body: JSON.stringify(DB)});
-      if(!put.ok) throw new Error("PUT HTTP "+put.status);
+      if(mode === "generic"){
+        const endpoint = SYNC.url.replace(/\/+$/,"") + "/" + encodeURIComponent(SYNC.key);
+        const put = await fetch(endpoint, {method:"PUT", body: JSON.stringify(DB)});
+        if(!put.ok) throw new Error("PUT HTTP "+put.status);
+      }else{
+        await githubSyncPut(JSON.stringify(DB));
+      }
       SYNC.status = "已推送到云端";
     }else{
       SYNC.status = "两边已一致";
@@ -1081,11 +1175,24 @@ function renderWeekChart(ws){
 
 /* 同步配置回显与状态 */
 function renderSyncUI(){
-  const u = document.getElementById("sy-url");
-  const k = document.getElementById("sy-key");
+  const isGh = SYNC.mode === "github";
+  const modeBtns = document.querySelectorAll("#sy-mode button");
+  modeBtns.forEach(b=>{ b.classList.toggle("on", b.dataset.m === (isGh?"github":"generic")); });
+  const gBlock = document.getElementById("sy-g");
+  const ghBlock = document.getElementById("sy-gh");
+  if(gBlock) gBlock.style.display = isGh ? "none" : "";
+  if(ghBlock) ghBlock.style.display = isGh ? "" : "none";
+  const fill = (id, val) => {
+    const el = document.getElementById(id);
+    if(el && document.activeElement !== el) el.value = val || "";
+  };
+  fill("sy-url", SYNC.url);
+  fill("sy-key", SYNC.key);
+  fill("sy-token", SYNC.token);
+  fill("sy-owner", SYNC.owner);
+  fill("sy-repo", SYNC.repo);
+  fill("sy-path", SYNC.path);
   const s = document.getElementById("sy-status");
-  if(u && document.activeElement !== u) u.value = SYNC.url || "";
-  if(k && document.activeElement !== k) k.value = SYNC.key || "";
   if(s){
     const lastTxt = SYNC.last ? (" · 上次 "+new Date(SYNC.last).toLocaleTimeString()) : "";
     s.textContent = (SYNC.status||"未配置") + lastTxt;
@@ -1141,7 +1248,8 @@ document.getElementById("set-save").addEventListener("click",()=>{
   alert("已保存。今天是第 "+weekInfo(new Date()).week+" 周。");
 });
 document.getElementById("btn-export").addEventListener("click",()=>{
-  const blob = new Blob([JSON.stringify(DB,null,2)],{type:"application/json"});
+  // 数据 + 同步配置一起导出：手机导入后连同步都免配置
+  const blob = new Blob([JSON.stringify({db:DB, sync:SYNC},null,2)],{type:"application/json"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = "优化方向-打卡备份-"+ymd(new Date())+".json";
@@ -1154,8 +1262,13 @@ document.getElementById("file-in").addEventListener("change",e=>{
   r.onload = () => {
     try{
       const o = JSON.parse(r.result);
-      if(!o.checkins) throw new Error("格式不对");
-      DB = ensureCustomTasks(Object.assign(DEF(), o));
+      const dbPart = (o && o.db) || o;   // 新格式 {db, sync}；旧格式顶层就是 DB
+      if(!dbPart.checkins) throw new Error("格式不对");
+      DB = ensureCustomTasks(sanitize(dbPart));
+      if(o && o.sync && typeof o.sync === "object"){
+        SYNC = Object.assign(SYNC, o.sync);
+        saveSyncCfg();
+      }
       save(); renderAll();
       alert("导入成功。");
     }catch(err){ alert("导入失败："+err.message); }
@@ -1167,9 +1280,20 @@ document.getElementById("btn-reset").addEventListener("click",()=>{
     DB = ensureCustomTasks(DEF()); save(); renderAll(); alert("已清空。");
   }
 });
+document.querySelectorAll("#sy-mode button").forEach(b=>{
+  b.addEventListener("click",()=>{
+    SYNC.mode = b.dataset.m;
+    saveSyncCfg(); renderSyncUI();
+  });
+});
 document.getElementById("sy-save").addEventListener("click",()=>{
   SYNC.url = document.getElementById("sy-url").value.trim();
   SYNC.key = document.getElementById("sy-key").value.trim();
+  SYNC.token = document.getElementById("sy-token").value.trim();
+  SYNC.owner = document.getElementById("sy-owner").value.trim();
+  SYNC.repo = document.getElementById("sy-repo").value.trim();
+  const p = document.getElementById("sy-path").value.trim();
+  if(p) SYNC.path = p;
   saveSyncCfg(); syncNow(true);
 });
 document.getElementById("sy-now").addEventListener("click",()=>syncNow(true));

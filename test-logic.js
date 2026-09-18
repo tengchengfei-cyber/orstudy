@@ -57,9 +57,13 @@ for (let d = 0; d <= 6; d++) {
 eq("每天都有英语词汇", [0,1,2,3,4,5,6].every(d => tasksFor(d).some(t => t.id === "en-vocab")), true);
 eq("周日是重型日(4项)", tasksFor(0).length, 4);
 eq("周六是重型日(4项)", tasksFor(6).length, 4);
-eq("周一只有英语(2项)", tasksFor(1).length, 2);
-eq("周三只有英语(2项)", tasksFor(3).length, 2);
-eq("周五只有英语(2项)", tasksFor(5).length, 2);
+eq("周一含英语+数学(3项)", tasksFor(1).length, 3);
+eq("周一含竞赛", tasksFor(1).some(t=>t.m==="竞赛"), true);
+eq("周三含英语+数学(3项)", tasksFor(3).length, 3);
+eq("周三含竞赛", tasksFor(3).some(t=>t.m==="竞赛"), true);
+eq("周五含英语+数学(3项)", tasksFor(5).length, 3);
+eq("周五含竞赛", tasksFor(5).some(t=>t.m==="竞赛"), true);
+eq("每个工作日都有数学", [1,2,3,4,5].every(d => tasksFor(d).some(t => t.m === "竞赛")), true);
 eq("周二含竞赛", tasksFor(2).some(t => t.m === "竞赛"), true);
 eq("周四含竞赛", tasksFor(4).some(t => t.m === "竞赛"), true);
 eq("周六含工程", tasksFor(6).some(t => t.m === "工程"), true);
@@ -177,15 +181,15 @@ eq("上周(单周)·周五无运筹学", shownClasses(5, (w2.week-1)%2===1).some
 
 console.log("\\n【12】自定义任务（v1.2）");
 // 初始状态：ensureCustomTasks 已在加载时用默认值播种
-eq("周一默认 2 项", tasksFor(1).length, 2);
+eq("周一默认 3 项", tasksFor(1).length, 3);
 eq("周六默认 4 项", tasksFor(6).length, 4);
 // 添加
 DB.customTasks[1].push({id:"c1",m:"其他",n:"每日复盘",d:"写三行总结",min:15});
-eq("添加后周一 3 项", tasksFor(1).length, 3);
+eq("添加后周一 4 项", tasksFor(1).length, 4);
 eq("新任务可被取到", tasksFor(1).some(t=>t.id==="c1"), true);
 // 删除
 DB.customTasks[1] = DB.customTasks[1].filter(t=>t.id!=="c1");
-eq("删除后周一恢复 2 项", tasksFor(1).length, 2);
+eq("删除后周一恢复 3 项", tasksFor(1).length, 3);
 // 恢复默认
 DB.customTasks[1] = [{id:"x",m:"其他",n:"t",d:"",min:10}];
 DB.customTasks[1] = JSON.parse(JSON.stringify(DEFAULT_TASKS[1]));
@@ -256,6 +260,45 @@ save();
 eq("save 后 updated 被更新", DB.updated >= t0, true);
 eq("sanitize 保留 updated", sanitize({updated: 123456}).updated, 123456);
 eq("sanitize 非法 updated 归 0", sanitize({updated: "x"}).updated, 0);
+
+console.log("\\n【15】v1.4 任务迁移（周一三五加数学，保护自定义）");
+// 模拟老用户：customTasks 还是 v1 默认 + taskSchema 缺失
+const v1Tasks = JSON.parse(JSON.stringify(DEFAULT_TASKS));
+v1Tasks[1] = v1Tasks[1].filter(t => t.id !== "or-calc");      // 周一退回 v1（2 项）
+v1Tasks[3] = v1Tasks[3].filter(t => t.id !== "or-drill");     // 周三退回 v1
+v1Tasks[5] = v1Tasks[5].filter(t => t.id !== "or-algebra2");  // 周五退回 v1
+DB = ensureCustomTasks(DEF());
+DB.customTasks = v1Tasks;
+delete DB.taskSchema;
+ensureCustomTasks(DB);
+eq("未改过的周一被迁移到 3 项", DB.customTasks[1].length, 3);
+eq("未改过的周三被迁移到 3 项", DB.customTasks[3].length, 3);
+eq("未改过的周五被迁移到 3 项", DB.customTasks[5].length, 3);
+eq("taskSchema 升到 2", DB.taskSchema, 2);
+// 用户自定义过的天不受迁移影响
+DB.customTasks = JSON.parse(JSON.stringify(DEFAULT_TASKS));
+DB.customTasks[2] = [{id:"my",m:"其他",n:"我的自定义",d:"",min:10}];
+DB.taskSchema = 1;
+ensureCustomTasks(DB);
+eq("自定义过的周二保持不变", DB.customTasks[2].length, 1);
+eq("自定义天的 id 不变", DB.customTasks[2][0].id, "my");
+// 已是最新 schema 时不再迁移
+DB.customTasks = JSON.parse(JSON.stringify(DEFAULT_TASKS));
+DB.customTasks[1] = DB.customTasks[1].filter(t=>t.id!=="or-calc");
+DB.taskSchema = 2;
+ensureCustomTasks(DB);
+eq("schema=2 时不再迁移(尊重用户删除)", DB.customTasks[1].length, 2);
+
+console.log("\\n【16】GitHub 同步（base64 与协议解析）");
+eq("b64 中文往返", b64decode(b64encode("优化方向·数分专题《裴礼文》")), "优化方向·数分专题《裴礼文》");
+eq("b64 含 emoji 往返", b64decode(b64encode("🎉 打卡")), "🎉 打卡");
+eq("b64 长 JSON 往返", b64decode(b64encode(JSON.stringify(DB))).slice(0,1), "{");
+// GitHub GET 响应解析（模拟 Contents API 返回）
+const fakeGh = {content: b64encode(JSON.stringify({checkins:{},extra:{},updated:777})), sha:"abc123"};
+const parsed = JSON.parse(b64decode(fakeGh.content));
+eq("解析快照 updated", parsed.updated, 777);
+eq("解析快照 sha 由响应给出", fakeGh.sha, "abc123");
+eq("SYNC 默认 github 字段齐全", ["mode","token","owner","repo","path"].every(k=>k in SYNC), true);
 
 console.log("\\n" + "=".repeat(46));
 console.log("  通过 " + pass + " 项，失败 " + fail + " 项");

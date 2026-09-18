@@ -226,6 +226,12 @@ node test-logic.js
 
 ## 版本记录
 
+### v1.4（2026-09-18）
+- ➕ **工作日每天都有数学**：周一数分专题 / 周二数分 / 周三刷题 / 周四刷题 / 周五高代（含任务表自动迁移，用户自定义过的天不动）
+- ➕ **GitHub 存储同步**：用你的 GitHub 私有仓库（`orstudy-sync`）存快照，**零新增账号**，令牌只存本机
+- ➕ 同步配置跟随「导出备份」一起走：电脑配好一次，手机导入 JSON 即完成配置
+- 🧪 逻辑自测 125 → 142 项（含迁移、base64、GitHub 协议解析）
+
 ### v1.3（2026-09-17）
 - ➕ **跨设备自动同步**：打卡数据多设备保持一致（LWW 最后写入胜出），自动同步（启动拉取 + 每 2 分钟）+ 手动按钮
 - ➕ 同步后端两选一：**Cloudflare Worker**（免费）或**自建 Python 服务**，协议一致
@@ -253,34 +259,34 @@ node test-logic.js
 
 ---
 
-## 跨设备同步（v1.3+）
+## 跨设备同步（v1.4+）
 
-想让「手机勾一下、电脑立刻看到」，部署一个同步后端，然后两个设备填相同的「后端地址 + 同步密钥」。
+想让「手机勾一下、电脑立刻看到」，站内「统计 → 跨设备同步」两种方式任选。
 
-**方案 A · Cloudflare Worker（免费，推荐）**
+**方式一 · GitHub 存储（推荐：零新增账号）**
 
-1. `cloudflare.com` → Workers & Pages → 创建 Worker
-2. 建一个 KV 命名空间，在 Worker 的 Settings → Bindings 添加：变量名 `SYNC` → 绑定你的 KV
-3. 把 `sync-worker.js` 的内容粘贴进编辑器 → Deploy
-4. 得到地址如 `https://orstudy-sync.xxx.workers.dev`
-5. 站内「统计 → 跨设备同步」填：这个地址 + 一个**长随机密钥**（如 `k9f2-x7md-4qzn-b8ta`，两个设备填同一个）
+1. 已建好私有仓库 `tengchengfei-cyber/orstudy-sync`（快照存 `sync/snapshot.json`）
+2. 生成一个**细粒度令牌**（约 2 分钟）：
+   - GitHub → 头像 → Settings → Developer settings → **Personal access tokens → Fine-grained tokens → Generate new token**
+   - Token name：`orstudy-sync`
+   - Expiration：1 年（到期重生成，换新令牌进站重填即可）
+   - Repository access：**Only select repositories → 选 `orstudy-sync`**
+   - Permissions → Repository permissions → **Contents → Read and write**
+   - 生成后复制 `github_pat_…` 开头的令牌
+3. 站内「统计 → 跨设备同步」→ 选 **GitHub 存储** → 填：令牌 / 用户名 `tengchengfei-cyber` / 仓库名 `orstudy-sync` / 路径 `sync/snapshot.json` → 保存并同步
+4. 手机端最省事：电脑配好后「统计 → 数据备份与迁移 → 导出备份」，JSON 发到手机导入 —— **同步配置会一起带过去**
 
-**方案 B · 自建服务器（有 VPS 的话）**
+> ⚠️ 令牌等同钥匙：只填在你自己的设备上，不要截图、不要发给任何人。泄露了去 GitHub 撤销重生成即可。
 
-```bash
-scp sync-server.py 你的服务器:~
-ssh 你的服务器
-python3 sync-server.py 8124 &
-# 用 nginx/caddy 反代到 https://你的域名/
-```
+**方式二 · 通用后端（Cloudflare Worker 或自建服务器）**
 
-后端地址填 `https://你的域名/`。
+Worker 部署：建 Worker + 绑 KV（变量名 `SYNC`）→ 粘贴 `sync-worker.js` → 站内填地址 + 长随机密钥。
+自建：`python3 sync-server.py 8124`，反代到 HTTPS 后填域名。
 
 **机制与边界**：
-- 协议：`GET /<room>` 取快照、`PUT /<room>` 存快照（<512KB）
 - 冲突策略：**LWW（最后写入胜出）**—— 以每次保存的时间戳为准。适合单人两设备；两人同时离线编辑再同步时，后保存的一方覆盖另一方
-- **隐私**：room 码就是唯一钥匙，**没有密码体系**。密钥要长且随机，别用生日学号；不要在公共设备上用
-- 没配后端时，所有功能照常，只是不跨设备同步
+- GitHub 方式：快照在你的**私有仓库**里，只有持令牌的人能读写；自动同步（启动拉取 + 每 2 分钟）
+- 没配同步时，所有功能照常，只是不跨设备
 
 ---
 
