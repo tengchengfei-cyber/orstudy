@@ -32,20 +32,28 @@ eq("9/14 进入第2周·双周", [weekInfo(D("2026-09-14")).week, weekInfo(D("20
 eq("9/17 是第2周·双周", [weekInfo(D("2026-09-17")).week, weekInfo(D("2026-09-17")).odd], [2, false]);
 eq("9/21 进入第3周·单周", [weekInfo(D("2026-09-21")).week, weekInfo(D("2026-09-21")).odd], [3, true]);
 eq("开学前不算已开始", weekInfo(D("2026-09-01")).started, false);
+// 真实校历：第 1 周周一 = 2026-08-31
+DB.settings.semesterStart = "2026-08-31";
+eq("校历 8/31 第1周·单周", [weekInfo(D("2026-08-31")).week, weekInfo(D("2026-08-31")).odd], [1, true]);
+eq("校历 9/07 第2周·双周", [weekInfo(D("2026-09-07")).week, weekInfo(D("2026-09-07")).odd], [2, false]);
+eq("校历 9/14 第3周·单周", [weekInfo(D("2026-09-14")).week, weekInfo(D("2026-09-14")).odd], [3, true]);
+eq("校历 9/17 第3周·单周", [weekInfo(D("2026-09-17")).week, weekInfo(D("2026-09-17")).odd], [3, true]);
+DB.settings.semesterStart = "2026-09-07";   // 还原，供后续用例
 
 console.log("\\n【2】单双周课程过滤（你的课表规则）");
 const names = (d, odd) => shownClasses(d, odd).map(c => c.name);
 eq("周四·单周 → 无课", names(4, true), []);
 eq("周四·双周 → 证券投资学", names(4, false), ["证券投资学"]);
-eq("周五·单周 → 只有生物多样性", names(5, true), ["生物多样性与人类（生命健康）"]);
+eq("周三·单周 → 2 节（无早八）", names(3, true), ["运筹学", "随机过程基础"]);
+eq("周三·双周 → 3 节（含早八数理统计）", names(3, false), ["数理统计", "运筹学", "随机过程基础"]);
+eq("周五·单周 → 运筹学 + 生物多样性", names(5, true), ["运筹学", "生物多样性与人类（生命健康）"]);
 eq("周五·双周 → 运筹学 + 生物多样性", names(5, false), ["运筹学", "生物多样性与人类（生命健康）"]);
-eq("周三·单周 → 3 节全上", names(3, true).length, 3);
-eq("周三·双周 → 3 节全上", names(3, false).length, 3);
+eq("运筹学单双周都有(周三&周五)", [true,false].every(o => names(3,o).includes("运筹学") && names(5,o).includes("运筹学")), true);
 eq("周一 单双周一致", names(1, true).length === names(1, false).length, true);
 eq("周二 单双周一致", names(2, true).length === names(2, false).length, true);
 eq("周六无课", names(6, true).length + names(6, false).length, 0);
 eq("周日无课", names(0, true).length + names(0, false).length, 0);
-eq("每天课按节次升序", shownClasses(3, true).every((c,i,a) => i===0 || a[i-1].p < c.p), true);
+eq("每天课按节次升序", shownClasses(3, false).every((c,i,a) => i===0 || a[i-1].p < c.p), true);
 
 console.log("\\n【3】每日任务表");
 for (let d = 0; d <= 6; d++) {
@@ -176,8 +184,10 @@ eq("本周=2", w2.week, 2);
 eq("offset+1 → 第3周·单周", (w2.week+1)%2===1, true);
 eq("offset-1 → 第1周·单周", (w2.week-1)%2===1, true);
 eq("下周(单周)·周四无课", shownClasses(4, (w2.week+1)%2===1).length, 0);
-eq("下周(单周)·周五只有生物多样性", shownClasses(5, (w2.week+1)%2===1).map(c=>c.name).join(","), "生物多样性与人类（生命健康）");
-eq("上周(单周)·周五无运筹学", shownClasses(5, (w2.week-1)%2===1).some(c=>c.name==="运筹学"), false);
+eq("单周·周三无早八数理统计", shownClasses(3, true).some(c=>c.name==="数理统计"), false);
+eq("双周·周三有早八数理统计", shownClasses(3, false).some(c=>c.name==="数理统计"), true);
+eq("单周·周五仍有运筹学(每周都有)", shownClasses(5, true).some(c=>c.name==="运筹学"), true);
+eq("双周·周五也有运筹学", shownClasses(5, false).some(c=>c.name==="运筹学"), true);
 
 console.log("\\n【12】自定义任务（v1.2）");
 // 初始状态：ensureCustomTasks 已在加载时用默认值播种
@@ -274,7 +284,7 @@ ensureCustomTasks(DB);
 eq("未改过的周一被迁移到 3 项", DB.customTasks[1].length, 3);
 eq("未改过的周三被迁移到 3 项", DB.customTasks[3].length, 3);
 eq("未改过的周五被迁移到 3 项", DB.customTasks[5].length, 3);
-eq("taskSchema 升到 2", DB.taskSchema, 2);
+eq("taskSchema 升到 3", DB.taskSchema, 3);
 // 用户自定义过的天不受迁移影响
 DB.customTasks = JSON.parse(JSON.stringify(DEFAULT_TASKS));
 DB.customTasks[2] = [{id:"my",m:"其他",n:"我的自定义",d:"",min:10}];
@@ -285,9 +295,22 @@ eq("自定义天的 id 不变", DB.customTasks[2][0].id, "my");
 // 已是最新 schema 时不再迁移
 DB.customTasks = JSON.parse(JSON.stringify(DEFAULT_TASKS));
 DB.customTasks[1] = DB.customTasks[1].filter(t=>t.id!=="or-calc");
+DB.taskSchema = 3;
+ensureCustomTasks(DB);
+eq("schema=3 时不再迁移(尊重用户删除)", DB.customTasks[1].length, 2);
+
+console.log("\\n【15b】校历迁移（旧推测默认值 → 真实开学日 2026-08-31）");
+eq("默认开学日已是 8/31", DEF().settings.semesterStart, "2026-08-31");
+DB = ensureCustomTasks(DEF());
+DB.settings.semesterStart = "2026-09-07";   // 模拟旧默认值
 DB.taskSchema = 2;
 ensureCustomTasks(DB);
-eq("schema=2 时不再迁移(尊重用户删除)", DB.customTasks[1].length, 2);
+eq("旧默认日期被纠正为 8/31", DB.settings.semesterStart, "2026-08-31");
+// 用户自己设过的日期不被覆盖
+DB.settings.semesterStart = "2026-09-14";
+DB.taskSchema = 2;
+ensureCustomTasks(DB);
+eq("用户自定义的日期不被覆盖", DB.settings.semesterStart, "2026-09-14");
 
 console.log("\\n【16】GitHub 同步（base64 与协议解析）");
 eq("b64 中文往返", b64decode(b64encode("优化方向·数分专题《裴礼文》")), "优化方向·数分专题《裴礼文》");

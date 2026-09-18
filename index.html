@@ -251,13 +251,14 @@ input[type=date]{padding:8px 10px;border-radius:10px;border:1px solid var(--line
     <h2>课程备注</h2>
     <div class="card">
       <ul>
-        <li><b>周四第 3 节 证券投资学</b> —— 仅双周</li>
-        <li><b>周五第 1 节 运筹学</b> —— 仅双周</li>
+        <li><b>周三第 1 节（早八）数理统计</b> —— <b>仅双周</b>（双周多出这一节）</li>
+        <li><b>周四第 3 节 证券投资学</b> —— <b>仅双周</b></li>
+        <li><b>运筹学（周三第 2 节 ＋ 周五第 1 节）</b> —— <b>每周都有，不分单双周</b></li>
+        <li><b>周一第 3 节 数理统计、随机过程基础、证券投资学（周二）、国际金融、趣味热学</b> —— 每周都有</li>
         <li><b>周五第 5 节 生物多样性与人类</b> —— 单双周都上</li>
-        <li><b>周一 / 周二 / 周三</b> —— 单双周无差异</li>
         <li><b>周六 / 周日</b> —— 无课</li>
       </ul>
-      <div class="okbox"><b>对你的意义：</b>单周的周四下午和周五上午是空出来的整块时间 —— 这是你做「工程实践」和「竞赛冲刺」最值钱的窗口，别浪费掉。</div>
+      <div class="okbox"><b>对你的意义：</b><b>单周的周四下午</b>和<b>单周的周三早八</b>是空出来的整块时间 —— 这是你做「工程实践」和「竞赛冲刺」最值钱的窗口，别浪费掉。</div>
     </div>
   </section>
 
@@ -587,11 +588,11 @@ const SCHEDULE = {
   2: [{p:2,name:"证券投资学",room:"中心理综楼500"},
       {p:3,name:"国际金融（英语）",room:"中心数学楼107"},
       {p:5,name:"趣味热学（科技素养）",room:"中心理综楼413d"}],
-  3: [{p:1,name:"数理统计",room:"中心理综楼203d"},
+  3: [{p:1,name:"数理统计",room:"中心理综楼203d",even:true},
       {p:2,name:"运筹学",room:"中心理综楼315d"},
       {p:5,name:"随机过程基础",room:"中心理综楼113d"}],
   4: [{p:3,name:"证券投资学",room:"中心公教楼205d",even:true}],
-  5: [{p:1,name:"运筹学",room:"中心理综楼315d",even:true},
+  5: [{p:1,name:"运筹学",room:"中心理综楼315d"},
       {p:5,name:"生物多样性与人类（生命健康）",room:"中心理综楼113d"}],
   6: []
 };
@@ -634,7 +635,8 @@ const MILESTONES = [
 /* ============================== 存储 ============================== */
 const KEY = "orstudy.v1";
 const KEY_BAK = "orstudy.v1.backup";
-const DEF = () => ({settings:{semesterStart:"2026-09-07"},checkins:{},extra:{},updated:0});
+const SEMESTER_START = "2026-08-31";   // 校历：第 1 周的周一
+const DEF = () => ({settings:{semesterStart:SEMESTER_START},checkins:{},extra:{},updated:0});
 
 /* 清洗任意来源的数据为合法结构，防止损坏的存储把应用搞崩 */
 function sanitize(raw){
@@ -672,7 +674,7 @@ function loadDB(){
   return sanitize(raw);
 }
 /* 自定义任务表：首次使用或导入旧数据时，用内置默认值补全。可传入 db 以便在加载路径里使用 */
-const TASK_SCHEMA = 2;
+const TASK_SCHEMA = 3;
 /* v1 时代每日任务的 id 签名（迁移用：只替换「用户没改过的那些天」，自定义过的保持不动） */
 const V1_IDS = {
   0:"en-vocab,en-write,or-algebra,eng-project",
@@ -683,6 +685,7 @@ const V1_IDS = {
   5:"en-vocab,en-listen",
   6:"en-vocab,en-read,or-calc,eng-ortools"
 };
+const OLD_DEFAULT_START = "2026-09-07";   // 曾经的推测默认值（要纠正掉）
 function ensureCustomTasks(db){
   db = db || DB;   // 防御：不传参时操作当前库
   if(!db.customTasks || typeof db.customTasks !== "object" || Array.isArray(db.customTasks)){
@@ -691,12 +694,19 @@ function ensureCustomTasks(db){
   [0,1,2,3,4,5,6].forEach(d=>{
     if(!Array.isArray(db.customTasks[d])) db.customTasks[d] = JSON.parse(JSON.stringify(DEFAULT_TASKS[d]));
   });
-  // 迁移旧默认 → 新默认（v1.4：周一/三/五新增数学任务）
   if(!db.taskSchema || db.taskSchema < TASK_SCHEMA){
-    [0,1,2,3,4,5,6].forEach(d=>{
-      const cur = (db.customTasks[d]||[]).map(t=>t.id).join(",");
-      if(cur === V1_IDS[d]) db.customTasks[d] = JSON.parse(JSON.stringify(DEFAULT_TASKS[d]));
-    });
+    // (a) v1 → v2：周一/三/五新增数学任务（只动没被自定义过的天）
+    //     注意用 !db.taskSchema 兜住「没有该字段」的老数据（undefined < 2 是 false，会漏迁移）
+    if(!db.taskSchema || db.taskSchema < 2){
+      [0,1,2,3,4,5,6].forEach(d=>{
+        const cur = (db.customTasks[d]||[]).map(t=>t.id).join(",");
+        if(cur === V1_IDS[d]) db.customTasks[d] = JSON.parse(JSON.stringify(DEFAULT_TASKS[d]));
+      });
+    }
+    // (b) v2 → v3：校历修正 —— 若还是旧的推测默认值，换成真实开学日期 2026-08-31
+    if(db.settings && db.settings.semesterStart === OLD_DEFAULT_START){
+      db.settings.semesterStart = SEMESTER_START;
+    }
     db.taskSchema = TASK_SCHEMA;
   }
   return db;
