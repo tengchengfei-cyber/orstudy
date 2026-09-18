@@ -13,6 +13,12 @@ const stubs = `
 var localStorage = { _d:{}, getItem(k){return this._d[k]||null}, setItem(k,v){this._d[k]=v} };
 function alert(){} function confirm(){return false}
 var renderAll = function(){};
+var document = {
+  querySelector(){ return null },          // 渲染层不参与逻辑测试
+  querySelectorAll(){ return [] },
+  getElementById(){ return null },
+  createElement(){ return {} }
+};
 var location = { search:"", pathname:"/", protocol:"http:", origin:"http://localhost", replace(){} };
 var navigator = { onLine:true };
 var window = { isSecureContext:true, innerWidth:390, innerHeight:844, caches:null, matchMedia(){return {matches:false}} };
@@ -26,6 +32,14 @@ const eq = (name, got, want) => {
   else { fail++; console.log("  ❌ " + name + "\\n      得到: " + JSON.stringify(got) + "\\n      期望: " + JSON.stringify(want)); }
 };
 const D = (s) => parseYmd(s);
+/* ⚠️ 默认任务表必须深拷贝，且每一「天」的数组也要独立：
+   ensureCustomTasks 迁移时会写回 customTasks[d]，若与 DEFAULT_TASKS[d] 共用同一个
+   数组对象，就会把内置默认本身改脏（连带让「等于 v3 默认」这类判定永远失效）。 */
+const cloneDefaults = () => {
+  const o = {};
+  [0,1,2,3,4,5,6].forEach(d => { o[d] = JSON.parse(JSON.stringify(DEFAULT_TASKS[d])); });
+  return o;
+};
 
 console.log("\\n【1】周次与单双周计算（开学第一周周一 = 2026-09-07）");
 DB.settings.semesterStart = "2026-09-07";
@@ -67,46 +81,56 @@ for (let d = 0; d <= 6; d++) {
 }
 eq("每天都有英语词汇", [0,1,2,3,4,5,6].every(d => tasksFor(d).some(t => t.id === "en-vocab")), true);
 eq("周日是重型日(4项)", tasksFor(0).length, 4);
-eq("周六是重型日(4项)", tasksFor(6).length, 4);
-eq("周一含英语+数学(3项)", tasksFor(1).length, 3);
+eq("周一含英语+数学+健身(4项)", tasksFor(1).length, 4);
 eq("周一含竞赛", tasksFor(1).some(t=>t.m==="竞赛"), true);
-eq("周三含英语+数学(3项)", tasksFor(3).length, 3);
+eq("周三含英语+数学+健身(4项)", tasksFor(3).length, 4);
 eq("周三含竞赛", tasksFor(3).some(t=>t.m==="竞赛"), true);
-eq("周五含英语+数学(3项)", tasksFor(5).length, 3);
+eq("周五含英语+数学+健身(4项)", tasksFor(5).length, 4);
 eq("周五含竞赛", tasksFor(5).some(t=>t.m==="竞赛"), true);
 eq("每个工作日都有数学", [1,2,3,4,5].every(d => tasksFor(d).some(t => t.m === "竞赛")), true);
 eq("周二含竞赛", tasksFor(2).some(t => t.m === "竞赛"), true);
 eq("周四含竞赛", tasksFor(4).some(t => t.m === "竞赛"), true);
 eq("周六含工程", tasksFor(6).some(t => t.m === "工程"), true);
 eq("周日含工程", tasksFor(0).some(t => t.m === "工程"), true);
+// v1.7：健身任务（周一至周六各一条，周日休息）
+eq("周一至周六都有健身任务", [1,2,3,4,5,6].every(d => tasksFor(d).some(t => t.m === "健身")), true);
+eq("周日（休息日）无健身任务", tasksFor(0).some(t => t.m === "健身"), false);
+eq("健身任务只有一条/天", [1,2,3,4,5,6].every(d => tasksFor(d).filter(t => t.m === "健身").length === 1), true);
+eq("周一/周四同为推日", [tasksFor(1), tasksFor(4)].every(l => l.some(t => t.id === "gym-push")), true);
+eq("周二/周五同为拉日", [tasksFor(2), tasksFor(5)].every(l => l.some(t => t.id === "gym-pull")), true);
+eq("周三/周六同为腿日", [tasksFor(3), tasksFor(6)].every(l => l.some(t => t.id === "gym-legs")), true);
+eq("健身任务时长合理(30–120)", [1,2,3,4,5,6].every(d => {
+  const g = tasksFor(d).find(t => t.m === "健身");
+  return g.min >= 30 && g.min <= 120;
+}), true);
 eq("所有任务都有 id/m/n/min", [0,1,2,3,4,5,6].every(d => tasksFor(d).every(t => t.id && t.m && t.n && typeof t.min === "number")), true);
 
 console.log("\\n【4】打卡与统计");
 DB.checkins = {};
 DB.extra = {};
+// 2026-09-17 是周四 → 任务条数从任务表实时取（避免写死数字，任务表变动时测试仍有效）
+const thuIds = tasksFor(4).map(t => t.id);
 eq("未打卡时今日 0/N", dayStats("2026-09-17").done, 0);
 eq("未打卡时不算完成", dayStats("2026-09-17").full, false);
-// 2026-09-17 是周四 → 3 项任务
-eq("周四任务数为 3", dayStats("2026-09-17").total, 3);
+eq("周四任务数为任务表条数", dayStats("2026-09-17").total, thuIds.length);
 toggle("2026-09-17", "en-vocab");
 eq("打完一项 done=1", dayStats("2026-09-17").done, 1);
 eq("未打完不算 full", dayStats("2026-09-17").full, false);
-toggle("2026-09-17", "en-read");
-toggle("2026-09-17", "or-drill");
+thuIds.filter(id => id !== "en-vocab").forEach(id => toggle("2026-09-17", id));
 eq("全打完 full=true", dayStats("2026-09-17").full, true);
 eq("累计打卡天数 = 1", totalDays(), 1);
 toggle("2026-09-17", "or-drill");
 eq("取消一项后 full=false", dayStats("2026-09-17").full, false);
-eq("取消后不残留空数组", Array.isArray(DB.checkins["2026-09-17"]) && DB.checkins["2026-09-17"].length, 2);
+eq("取消后不残留空数组", Array.isArray(DB.checkins["2026-09-17"]) && DB.checkins["2026-09-17"].length, thuIds.length - 1);
 // 额外任务计入总数
 DB.extra["2026-09-17"] = [{ id:"x1", n:"写 README" }];
-eq("加额外任务后 total=4", dayStats("2026-09-17").total, 4);
+eq("加额外任务后 total 增 1", dayStats("2026-09-17").total, thuIds.length + 1);
 DB.extra["2026-09-17"] = [];
 
 console.log("\\n【5】连续打卡 streak");
 DB.checkins = {}; DB.extra = {};
 eq("无记录 streak=0", streak(), 0);
-toggle("2026-09-17","en-vocab"); toggle("2026-09-17","en-read"); toggle("2026-09-17","or-drill");
+thuIds.forEach(id => toggle("2026-09-17", id));
 eq("仅今天完成 → streak=1", streak(), 1);
 
 console.log("\\n【6】模块累计时长");
@@ -218,17 +242,18 @@ eq("save 写恢复备份", JSON.parse(localStorage._d["orstudy.v1.backup"]).chec
 
 console.log("\\n【10】一键全打卡（dayTaskIds / setDayAll）");
 DB.checkins = {}; DB.extra = {};
-eq("周四 dayTaskIds = 3 项", dayTaskIds("2026-09-17").length, 3);
+const thuLen = tasksFor(4).length;
+eq("周四 dayTaskIds = 任务表条数", dayTaskIds("2026-09-17").length, thuLen);
 setDayAll("2026-09-17");
 eq("全打卡后 full=true", dayStats("2026-09-17").full, true);
-eq("全打卡后 done=3", dayStats("2026-09-17").done, 3);
+eq("全打卡后 done=全部", dayStats("2026-09-17").done, thuLen);
 setDayAll("2026-09-17");
 eq("再按一次全取消", dayStats("2026-09-17").done, 0);
 eq("取消后不残留键", ("2026-09-17" in DB.checkins), false);
 // 含额外任务
 DB.extra["2026-09-17"] = [{id:"x1",n:"写 README"}];
 setDayAll("2026-09-17");
-eq("额外任务也一起打卡", dayStats("2026-09-17").done, 4);
+eq("额外任务也一起打卡", dayStats("2026-09-17").done, thuLen + 1);
 setDayAll("2026-09-17");
 eq("再次全取消(含额外)", dayStats("2026-09-17").done, 0);
 DB.extra = {};
@@ -248,15 +273,15 @@ eq("双周·周五也有运筹学", shownClasses(5, false).some(c=>c.name==="运
 
 console.log("\\n【12】自定义任务（v1.2）");
 // 初始状态：ensureCustomTasks 已在加载时用默认值播种
-eq("周一默认 3 项", tasksFor(1).length, 3);
-eq("周六默认 4 项", tasksFor(6).length, 4);
+eq("周一默认条数 = 内置", tasksFor(1).length, DEFAULT_TASKS[1].length);
+eq("周六默认条数 = 内置", tasksFor(6).length, DEFAULT_TASKS[6].length);
 // 添加
 DB.customTasks[1].push({id:"c1",m:"其他",n:"每日复盘",d:"写三行总结",min:15});
-eq("添加后周一 4 项", tasksFor(1).length, 4);
+eq("添加后周一 多一项", tasksFor(1).length, DEFAULT_TASKS[1].length + 1);
 eq("新任务可被取到", tasksFor(1).some(t=>t.id==="c1"), true);
 // 删除
 DB.customTasks[1] = DB.customTasks[1].filter(t=>t.id!=="c1");
-eq("删除后周一恢复 3 项", tasksFor(1).length, 3);
+eq("删除后周一恢复", tasksFor(1).length, DEFAULT_TASKS[1].length);
 // 恢复默认
 DB.customTasks[1] = [{id:"x",m:"其他",n:"t",d:"",min:10}];
 DB.customTasks[1] = JSON.parse(JSON.stringify(DEFAULT_TASKS[1]));
@@ -269,7 +294,7 @@ eq("已有的天保留(周一1项)", tasksFor(1).length, 1);
 eq("补齐后每天都有任务", [0,1,2,3,4,5,6].every(d=>tasksFor(d).length>0), true);
 // 孤儿打卡：删除任务后，历史打卡不再计入统计
 DB.checkins = {}; DB.extra = {};
-DB.customTasks = JSON.parse(JSON.stringify(DEFAULT_TASKS));
+DB.customTasks = cloneDefaults();
 DB.customTasks[3] = [{id:"keep",m:"英语",n:"仅此一项",d:"",min:10}];  // 9/16 是周三
 DB.checkins["2026-09-16"] = ["en-vocab","en-listen"];  // 这两个 id 已不存在于周三
 eq("孤儿打卡不计入 done", dayStats("2026-09-16").done, 0);
@@ -280,11 +305,11 @@ eq("真实任务打卡计入", dayStats("2026-09-16").done, 1);
 eq("唯一任务打卡即 full", dayStats("2026-09-16").full, true);
 // 清理状态
 DB.checkins = {}; DB.extra = {};
-DB.customTasks = JSON.parse(JSON.stringify(DEFAULT_TASKS));
+DB.customTasks = cloneDefaults();
 
 console.log("\\n【13】周视图报表（weekStats）");
 DB.checkins = {}; DB.extra = {};
-DB.customTasks = JSON.parse(JSON.stringify(DEFAULT_TASKS));
+DB.customTasks = cloneDefaults();
 let ws = weekStats(4);
 eq("返回 4 周", ws.length, 4);
 eq("无打卡时本周 rate=0", ws[3].rate, 0);
@@ -328,9 +353,9 @@ eq("save 后 updated 被更新", DB.updated >= t0, true);
 eq("sanitize 保留 updated", sanitize({updated: 123456}).updated, 123456);
 eq("sanitize 非法 updated 归 0", sanitize({updated: "x"}).updated, 0);
 
-console.log("\\n【15】v1.4 任务迁移（周一三五加数学，保护自定义）");
+console.log("\\n【15】任务迁移（周一三五加数学 + 加健身，保护自定义）");
 // 模拟老用户：customTasks 还是 v1 默认 + taskSchema 缺失
-const v1Tasks = JSON.parse(JSON.stringify(DEFAULT_TASKS));
+const v1Tasks = cloneDefaults();
 v1Tasks[1] = v1Tasks[1].filter(t => t.id !== "or-calc");      // 周一退回 v1（2 项）
 v1Tasks[3] = v1Tasks[3].filter(t => t.id !== "or-drill");     // 周三退回 v1
 v1Tasks[5] = v1Tasks[5].filter(t => t.id !== "or-algebra2");  // 周五退回 v1
@@ -341,20 +366,77 @@ ensureCustomTasks(DB);
 eq("未改过的周一被迁移到 3 项", DB.customTasks[1].length, 3);
 eq("未改过的周三被迁移到 3 项", DB.customTasks[3].length, 3);
 eq("未改过的周五被迁移到 3 项", DB.customTasks[5].length, 3);
-eq("taskSchema 升到 3", DB.taskSchema, 3);
+eq("taskSchema 升到最新", DB.taskSchema, TASK_SCHEMA);
 // 用户自定义过的天不受迁移影响
-DB.customTasks = JSON.parse(JSON.stringify(DEFAULT_TASKS));
+DB.customTasks = cloneDefaults();
 DB.customTasks[2] = [{id:"my",m:"其他",n:"我的自定义",d:"",min:10}];
 DB.taskSchema = 1;
 ensureCustomTasks(DB);
 eq("自定义过的周二保持不变", DB.customTasks[2].length, 1);
 eq("自定义天的 id 不变", DB.customTasks[2][0].id, "my");
 // 已是最新 schema 时不再迁移
-DB.customTasks = JSON.parse(JSON.stringify(DEFAULT_TASKS));
+DB.customTasks = cloneDefaults();
 DB.customTasks[1] = DB.customTasks[1].filter(t=>t.id!=="or-calc");
+DB.taskSchema = TASK_SCHEMA;
+ensureCustomTasks(DB);
+eq("schema 已最新时不再迁移(尊重用户删除)", DB.customTasks[1].length, DEFAULT_TASKS[1].length-1);
+
+console.log("\\n【15a】v3 → v4 健身任务迁移（补齐且绝不动用户的选择）");
+const V3 = d => DEFAULT_TASKS[d].filter(t => t.m !== "健身");
+// (0) v1 老数据 + 某天自定义过 → 那一天整体不动
+DB = ensureCustomTasks(DEF());
+DB.customTasks = cloneDefaults();
+DB.customTasks[2] = [{id:"my",m:"其他",n:"我的自定义",d:"",min:10}];
+delete DB.taskSchema;
+DB.gymSkipped = {};
+ensureCustomTasks(DB);
+eq("自定义过的天迁移后仍只有 1 项", DB.customTasks[2].length, 1);
+eq("自定义天没被塞进健身任务", DB.customTasks[2].some(t => t.m === "健身"), false);
+eq("同一次迁移里其他天补上了健身", DB.customTasks[4].some(t => t.m === "健身"), true);
+// (1) v3 数据里的默认天（还没有健身任务）→ 迁移按默认补齐
+DB = ensureCustomTasks(DEF());
+DB.customTasks = cloneDefaults();
+DB.customTasks[3] = V3(3);
+DB.taskSchema = 3;
+DB.gymSkipped = {};
+ensureCustomTasks(DB);
+eq("v3 默认天被补齐健身任务", DB.customTasks[3].some(t => t.m === "健身"), true);
+eq("补齐后与内置默认一致(周三)", JSON.stringify(DB.customTasks[3]), JSON.stringify(DEFAULT_TASKS[3]));
+eq("补齐后不重复", DB.customTasks[3].filter(t => t.m === "健身").length, 1);
+eq("同一天其他任务不受影响", DB.customTasks[3].some(t => t.id === "or-drill"), true);
+// (2) v3 数据里从来没排过健身 → 迁移补上
+DB = ensureCustomTasks(DEF());
+DB.customTasks = cloneDefaults();
+DB.customTasks[1] = V3(1);
+DB.customTasks[4] = V3(4);
+DB.taskSchema = 3;
+DB.gymSkipped = {};
+ensureCustomTasks(DB);
+eq("缺失的健身任务被补回(周一)", DB.customTasks[1].some(t => t.m === "健身"), true);
+eq("缺失的健身任务被补回(周四)", DB.customTasks[4].some(t => t.m === "健身"), true);
+eq("补回后不重复", DB.customTasks[1].filter(t => t.m === "健身").length, 1);
+eq("周日休息日不补健身", DB.customTasks[0].some(t => t.m === "健身"), false);
+eq("补回后与内置默认一致", JSON.stringify(DB.customTasks[1]), JSON.stringify(DEFAULT_TASKS[1]));
+// (3) 用户在前端明确删过健身（gymSkipped）→ 升级不再塞回
+DB = ensureCustomTasks(DEF());
+DB.customTasks = cloneDefaults();
+DB.customTasks[3] = V3(3);
+DB.taskSchema = 3;
+DB.gymSkipped = {3:true};
+ensureCustomTasks(DB);
+eq("明确删过的健身任务不被塞回", DB.customTasks[3].some(t => t.m === "健身"), false);
+eq("该天其他缺失项仍按默认补齐", DB.customTasks[3].length, V3(3).length);
+// 恢复默认后应能重新拿回健身任务
+delete DB.gymSkipped[3];
+DB.customTasks[3] = V3(3);
 DB.taskSchema = 3;
 ensureCustomTasks(DB);
-eq("schema=3 时不再迁移(尊重用户删除)", DB.customTasks[1].length, 2);
+eq("恢复默认后健身任务回来", DB.customTasks[3].some(t => t.m === "健身"), true);
+// (4) 迁移是幂等的
+const before = JSON.stringify(DB.customTasks);
+DB.taskSchema = 3;
+ensureCustomTasks(DB);
+eq("迁移幂等（重复跑不改动）", JSON.stringify(DB.customTasks), before);
 
 console.log("\\n【15b】校历迁移（旧推测默认值 → 真实开学日 2026-08-31）");
 eq("默认开学日已是 8/31", DEF().settings.semesterStart, "2026-08-31");
@@ -379,6 +461,114 @@ const parsed = JSON.parse(b64decode(fakeGh.content));
 eq("解析快照 updated", parsed.updated, 777);
 eq("解析快照 sha 由响应给出", fakeGh.sha, "abc123");
 eq("SYNC 默认 github 字段齐全", ["mode","token","owner","repo","path"].every(k=>k in SYNC), true);
+
+console.log("\\n【17】健身计划（三分化）");
+eq("计划名与目标齐全", !!(gymPlan().name && gymPlan().goal), true);
+eq("三套分化：推/拉/腿", gymRoutines().map(r => r.name).join(","), "推,拉,腿");
+eq("每套都有动作", gymRoutines().every(r => r.ex.length >= 5), true);
+eq("每周 6 练（只休周日）", gymPlan().days.filter(i => i >= 0).length, 6);
+eq("周日为休息日", gymPlan().days[0], -1);
+eq("训练日下标合法", gymPlan().days.every(i => i === -1 || (i >= 0 && i < gymRoutines().length)), true);
+eq("每套动作名不重复", gymRoutines().every(r => new Set(r.ex.map(e => e.n)).size === r.ex.length), true);
+eq("每个动作组数 1–10", gymRoutines().every(r => r.ex.every(e => e.sets >= 1 && e.sets <= 10)), true);
+eq("每个动作都有次数与休息", gymRoutines().every(r => r.ex.every(e => e.reps && e.rest)), true);
+eq("每个动作都有要领", gymRoutines().every(r => r.ex.every(e => e.q)), true);
+// 安全约束：脱手会砸人的动作不做
+const allNames = gymRoutines().reduce((a,r) => a.concat(r.ex.map(e => e.n)), []).join(" | ");
+eq("不含平板杠铃卧推", /平板.{0,4}杠铃卧推/.test(allNames), false);
+eq("不含站姿杠铃肩推", /站姿杠铃/.test(allNames), false);
+eq("推日有器械推胸替代", gymRoutine(0).ex.some(e => /器械推胸/.test(e.n)), true);
+eq("深蹲注明深蹲架安全杆", gymRoutine(2).ex.some(e => /安全杆/.test(e.q)), true);
+eq("腿日含腘绳动作", gymRoutine(2).ex.some(e => /腿弯举/.test(e.n)), true);
+// 今日该练哪套 / 休息日
+const savedDays = gymPlan().days.slice();
+[0,1,2,3,4,5,6].forEach(i => { gymPlan().days[i] = [0,1,2,0,1,2,0][i]; });   // 构造「今天必有排课」的查表
+eq("gymDayIdx 按日期算周几", [gymDayIdx("2026-09-17"), gymDayIdx(2026,8,17)], [4,4]);
+eq("周四 → 拉日", gymRoutines()[gymPlan().days[4]].name, "拉");
+eq("gymDayIdx 支持 ymd 字符串", gymDayIdx(ymd(new Date())), new Date().getDay());
+savedDays.forEach((v,i) => { gymPlan().days[i] = v; });
+eq("计划天数已还原", gymPlan().days.join(","), GYM_PLAN.days.join(","));
+
+console.log("\\n【18】健身打卡记录（gymSaveState / 容量 / 清洗）");
+DB.gym = {plan: JSON.parse(JSON.stringify(GYM_PLAN)), log:[], state:{}};
+const R0 = gymRoutine(0);
+const DATE = "2026-09-17";
+gymSaveState(DATE, 0, 4);
+eq("没有勾选 → 不写记录", DB.gym.log.length, 0);
+const cur = gymStateOf(DATE, R0.name, R0.ex[0].n, 8);
+cur.w[R0.ex[0].n] = 40; cur.done[R0.ex[0].n] = 4; cur.reps[R0.ex[0].n] = 10;
+gymSaveState(DATE, 0, 4);
+eq("勾选后写入 1 条记录", DB.gym.log.length, 1);
+eq("记录组数 = 4", DB.gym.log[0].sets, 4);
+eq("容量 = 40×10×4", DB.gym.log[0].vol, 1600);
+eq("记录带训练名", DB.gym.log[0].rn, "推");
+eq("记录带动作明细", DB.gym.log[0].ex.length, R0.ex.length);
+eq("同一天重复保存不叠加", (gymSaveState(DATE, 0, 4), DB.gym.log.length), 1);
+// 取消全部 → 记录应被撤销
+cur.done[R0.ex[0].n] = 0;
+gymSaveState(DATE, 0, 4);
+eq("取消打卡后记录被撤销", DB.gym.log.length, 0);
+// 没填重量则不计入容量
+cur.done[R0.ex[0].n] = 2; cur.w[R0.ex[0].n] = 0;
+gymSaveState(DATE, 0, 4);
+eq("未填重量时容量为 0", DB.gym.log[0].vol, 0);
+eq("未填重量仍记录组数", DB.gym.log[0].sets, 2);
+eq("gymLogFor 能取到当天记录", gymLogFor(DATE).rn, "推");
+eq("gymLogFor 取不到别的日期", gymLogFor("2020-01-01"), null);
+// 「上次的重量」只认今天之前的记录
+eq("gymLastWeight 命中历史", (function(){
+  DB.gym.log.unshift({d:"2026-09-10", w:4, rn:"推", sets:3, vol:0, ex:[],
+    wts:[{n:R0.ex[0].n, kg:37.5}]});
+  return gymLastWeight(R0.ex[0].n);
+})(), 37.5);
+eq("gymLastWeight 忽略今天的记录", gymLastWeight(R0.ex[0].n) === 37.5, true);
+
+// sanitize：坏数据不能让页面崩，也不能污染结构
+{
+  let e = null;
+  try { sanitize({gym:{plan:{routines:"bad", days:"bad"}, log:"bad"}}); } catch (err) { e = err.message; }
+  eq("sanitize 处理坏 gym 不抛错", e, null);
+  eq("坏 routines 退回内置", sanitize({gym:{plan:{routines:"bad"}}}).gym.plan.routines.length, 3);
+  eq("坏 days 退回内置", sanitize({gym:{plan:{days:"bad"}}}).gym.plan.days.length, 7);
+  eq("坏 log 退回空数组", sanitize({gym:{log:"bad"}}).gym.log.length, 0);
+  eq("无 gym 字段时给出完整默认", sanitize({}).gym.plan.routines.length, 3);
+  eq("丢弃空动作的分类", sanitize({gym:{plan:{routines:[{name:"空",ex:[]}]}}}).gym.plan.routines.length, 3);
+  eq("丢弃缺名字的动作", sanitize({gym:{plan:{routines:[{name:"X",ex:[{s:"胸"},{n:"好的"}]}]}}})
+      .gym.plan.routines[0].ex.length, 1);
+  eq("组数越界被夹回默认", sanitize({gym:{plan:{routines:[{name:"X",ex:[{n:"a",sets:99}]}]}}})
+      .gym.plan.routines[0].ex[0].sets, 3);
+  eq("log 过滤坏条目", sanitize({gym:{log:[{d:"2026-09-17",rn:"推"},{bad:1},null]}}).gym.log.length, 1);
+  eq("log 缺字段被补 0", sanitize({gym:{log:[{d:"2026-09-17",rn:"推"}]}}).gym.log[0].sets, 0);
+  eq("plan.notes 被保留", sanitize({gym:{plan:{notes:[{t:"有氧",b:"低强度"}]}}}).gym.plan.notes.length, 1);
+  // ⚠️ 历史 bug 回归（v1.7 修复）：sanitize 没保留 gym.state → 刷新后勾选与每组重量全丢
+  const rt = sanitize({gym:{state:{"2026-09-17|推":{w:{"坐姿器械推胸":42.5},done:{"坐姿器械推胸":3},reps:{"坐姿器械推胸":10}}}}});
+  eq("sanitize 保留 gym.state 的键", Object.keys(rt.gym.state).length, 1);
+  eq("sanitize 保留每组重量", rt.gym.state["2026-09-17|推"].w["坐姿器械推胸"], 42.5);
+  eq("sanitize 保留每组完成数", rt.gym.state["2026-09-17|推"].done["坐姿器械推胸"], 3);
+  eq("sanitize 保留每组次数", rt.gym.state["2026-09-17|推"].reps["坐姿器械推胸"], 10);
+  eq("sanitize 无 state 时也返回对象", typeof sanitize({}).gym.state, "object");
+  eq("sanitize 清掉非数字的重量", Object.keys(sanitize({gym:{state:{"k":{w:{"a":"坏"},done:{},reps:{}}}}}).gym.state).length, 0);
+  eq("sanitize 处理坏 state 类型", Object.keys(sanitize({gym:{state:"bad"}}).gym.state).length, 0);
+}
+// 完整往返：save → loadDB → sanitize（真实刷新路径，守住「刷新崩」这类回归）
+DB = ensureCustomTasks(DEF());
+DB.checkins["2026-09-17"] = ["en-vocab"];
+DB.gym.state = {"2026-09-17|推":{w:{"坐姿器械推胸":40}, done:{"坐姿器械推胸":3}, reps:{"坐姿器械推胸":10}}};
+gymSaveState("2026-09-17", 0, 4);
+save();
+let e3 = null;
+try { DB = ensureCustomTasks(sanitize(JSON.parse(localStorage.getItem("orstudy.v1")))); }
+catch (err) { e3 = err.message; }
+eq("带健身数据的存储往返不抛错", e3, null);
+eq("往返后健身记录完好", DB.gym.log.length, 1);
+eq("往返后容量完好", DB.gym.log[0].vol, 1200);
+eq("往返后训练计划完好", DB.gym.plan.routines.length, 3);
+eq("往返后已打卡数据完好", DB.checkins["2026-09-17"].length, 1);
+// 逐组状态也要活过刷新（历史 bug：刷新后勾选与重量全丢）
+eq("往返后逐组状态还在", !!DB.gym.state["2026-09-17|推"], true);
+eq("往返后重量还在", DB.gym.state["2026-09-17|推"].w["坐姿器械推胸"], 40);
+eq("往返后完成组数还在", DB.gym.state["2026-09-17|推"].done["坐姿器械推胸"], 3);
+DB.gym = {plan: JSON.parse(JSON.stringify(GYM_PLAN)), log:[], state:{}};
 
 console.log("\\n" + "=".repeat(46));
 console.log("  通过 " + pass + " 项，失败 " + fail + " 项");

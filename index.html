@@ -160,6 +160,30 @@ input[type=date]{padding:8px 10px;border-radius:10px;border:1px solid var(--line
 .frow{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
 .frow .full{grid-column:1/-1}
 .frow input,.frow select{padding:9px 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text);font-family:inherit;font-size:14px;width:100%}
+/* ---- 健身（三分化） ---- */
+.fw{display:flex;gap:5px;margin:6px 0 12px}
+.fw button{flex:1;padding:8px 2px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--muted);font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;line-height:1.35}
+.fw button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.fw button .w{display:block;font-size:10px;font-weight:400;opacity:.85}
+.ex{padding:11px 0;border-bottom:1px solid var(--line)}
+.ex:last-child{border-bottom:0;padding-bottom:0}
+.ex .t{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.ex .n{font-weight:600;font-size:15px}
+.ex .n .s{color:var(--muted);font-weight:400;font-size:13px}
+.ex .r{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.ex .q{font-size:12px;color:var(--muted);margin-top:3px}
+.sets{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}
+.sets .sb{width:30px;height:30px;border-radius:9px;border:2px solid var(--line);background:var(--card);color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;padding:0;font-variant-numeric:tabular-nums}
+.sets .sb.done{background:var(--ok);border-color:var(--ok);color:#fff}
+.sets .kg{width:82px;padding:5px 8px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit;font-variant-numeric:tabular-nums}
+.sets .sw{font-size:12px;color:var(--muted);padding:4px 9px;border-radius:9px;border:1px solid var(--line);background:var(--card);cursor:pointer;font-family:inherit}
+.lg{display:grid;grid-template-columns:82px 1fr 62px 88px;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:12.5px;font-variant-numeric:tabular-nums}
+.lg:last-child{border-bottom:0}
+.lg .dt{color:var(--muted)}
+.lg .rn{font-weight:600}
+.lg .st{color:var(--muted);text-align:center}
+.lg .vl{text-align:right;color:var(--muted)}
+
 /* ---- 周报表 ---- */
 .chart{width:100%;height:auto;display:block}
 .chart text{font-size:10px;fill:var(--muted)}
@@ -552,6 +576,62 @@ uv run python -c "from ortools.linear_solver import pywraplp; print('OK')"</code
     </details>
   </section>
 
+  <section id="v-gym" class="view">
+    <div class="banner">
+      <div class="big">三分化 <span class="tag" style="border-style:solid">方案 A</span></div>
+      <div class="sm" id="gym-sub">推 / 拉 / 腿 · 每周 6 练 · 每个肌群每周 2 次</div>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi"><div class="n" id="gym-k1">—</div><div class="l">本周训练</div></div>
+      <div class="kpi"><div class="n" id="gym-k2">—</div><div class="l">今日完成组</div></div>
+      <div class="kpi"><div class="n" id="gym-k3">—</div><div class="l">今日容量 kg</div></div>
+    </div>
+
+    <h2>本周安排</h2>
+    <div class="card" id="gym-week"></div>
+
+    <h2>今日训练</h2>
+    <div class="card">
+      <div id="gym-today"></div>
+    </div>
+
+    <h2>训练计划（可编辑）</h2>
+    <div class="fw" id="gym-switch"></div>
+    <div class="card">
+      <div class="day" style="padding-top:0">
+        <div class="h"><span id="gym-plan-title">—</span><span class="w" id="gym-plan-meta"></span></div>
+      </div>
+      <div id="gym-plan"></div>
+    </div>
+    <div class="row">
+      <button id="gym-edit">✎ 编辑这份计划</button>
+      <button id="gym-log">🗒 打卡记录</button>
+    </div>
+
+    <h2>渐进超负荷与安全</h2>
+    <div class="card">
+      <ul style="font-size:13.5px;margin:0">
+        <li><b>渐进超负荷</b>：能做满次数区间上限 → 下次 +2.5kg；加不动了再加次数；最后才加组数。</li>
+        <li><b>力竭程度</b>：深蹲 / 硬拉 / 腿举 / 划船这类大动作留 1–2 次余力；孤立动作可接近力竭。</li>
+        <li><b>组间休息</b>：大动作 2–3 分钟，孤立动作 60–90 秒。别为了「出汗多」压到 30 秒，会掉力量。</li>
+        <li><b>记录</b>：每组的重量填在动作下面，容量会自动累计 —— 下次照着加。</li>
+        <li><b>换动作</b>：每 4–6 周才需要换变式，一周一换没法追踪进步。</li>
+      </ul>
+      <div class="warnbox" style="margin-bottom:0">
+        <b>安全线（你的判据：脱手不砸人）</b><br>
+        · 深蹲如用杠铃，<b>必须在深蹲架内、安全杆调到最低点略低于底部位置</b>；没有架子就用腿举或哈克蹲。<br>
+        · <b>不做平板杠铃卧推</b>（无保护最危险），胸用坐姿器械推胸 / 哑铃上斜推。<br>
+        · 硬拉用<b>六角杠 / 陷阱杠</b>或哑铃更稳；大重量不锁死膝盖、不做弹震式下放。<br>
+        · 引体 / 悬挂类只要有单杠就没问题（脱手是落地，不砸身）。<br>
+        · 任何动作都别用「惯性甩起来」的重量 —— 那才是真正的风险来源。
+      </div>
+    </div>
+
+    <h2>有氧与吃</h2>
+    <div class="card" id="gym-extra"></div>
+  </section>
+
   <!-- 任务编辑弹窗 -->
   <div class="modal" id="task-modal" hidden>
     <div class="modal-card">
@@ -574,6 +654,36 @@ uv run python -c "from ortools.linear_solver import pywraplp; print('OK')"</code
     </div>
   </div>
 
+  <!-- 健身计划编辑弹窗 -->
+  <div class="modal" id="gym-modal" hidden>
+    <div class="modal-card">
+      <div class="modal-hd"><b>✎ 编辑训练计划</b><button id="gm-close">✕</button></div>
+      <div class="seg" id="gm-days"></div>
+      <div class="note" id="gm-hint" style="margin-top:8px"></div>
+      <div id="gm-list"></div>
+      <div class="frow">
+        <input id="gm-name" class="full" placeholder="动作名（必填，如：坐姿器械推胸）" maxlength="30">
+        <input id="gm-muscle" class="full" placeholder="目标部位（选填，如：胸 · 三头）" maxlength="20">
+        <input id="gm-sets" type="number" min="1" max="10" step="1" value="3" placeholder="组数">
+        <input id="gm-reps" placeholder="次数（如 8–10）" maxlength="10" value="8–10">
+        <input id="gm-rest" placeholder="组间休息（如 90s / 2min）" maxlength="12" value="90s">
+        <input id="gm-quote" class="full" placeholder="动作要领 / 提示（选填）" maxlength="60">
+      </div>
+      <div class="row">
+        <button id="gm-add">➕ 添加动作</button>
+        <button id="gm-restore" class="danger">恢复这套默认</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 打卡记录弹窗 -->
+  <div class="modal" id="log-modal" hidden>
+    <div class="modal-card">
+      <div class="modal-hd"><b>🗒 打卡记录</b><button id="lm-close">✕</button></div>
+      <div id="lm-body"></div>
+    </div>
+  </div>
+
   <footer>优化方向 · 本地打卡 · 数据只存在你自己的设备上 · <span id="appver"></span></footer>
 </main>
 
@@ -583,13 +693,14 @@ uv run python -c "from ortools.linear_solver import pywraplp; print('OK')"</code
     <button data-v="schedule"><span class="g">▤</span>课表</button>
     <button data-v="plan"><span class="g">◈</span>计划</button>
     <button data-v="res"><span class="g">◇</span>资源</button>
+    <button data-v="gym"><span class="g">◆</span>健身</button>
     <button data-v="stats"><span class="g">▣</span>统计</button>
   </div>
 </nav>
 
 <script>
 "use strict";
-const APP_VERSION = "1.6";
+const APP_VERSION = "1.7";
 
 /* ?fix=1 或 ?nosw=1：一键自愈 —— 注销 Service Worker、清空离线缓存后重载。
    只清缓存与 SW，不动 localStorage 里的打卡数据。 */
@@ -636,6 +747,7 @@ const SCHEDULE = {
 };
 
 // 内置默认任务（可被用户在弹窗里增删改；0=周日 … 6=周六）
+// 健身那条与「推 / 拉 / 腿」循环对应，周日为休息日，故不排
 const DEFAULT_TASKS = {
   0:[{id:"en-vocab",m:"英语",n:"词汇",d:"新词 50 + 复习前日",min:15},
      {id:"en-write",m:"英语",n:"写作 / 翻译",d:"1 篇",min:25},
@@ -643,23 +755,29 @@ const DEFAULT_TASKS = {
      {id:"eng-project",m:"工程",n:"项目推进（下午）",d:"投资组合优化 / GitHub 仓库",min:150}],
   1:[{id:"en-vocab",m:"英语",n:"词汇",d:"新词 50 + 复习前日",min:15},
      {id:"en-listen",m:"英语",n:"听力精听",d:"真题听力 3 遍：做题 → 逐句听写 → 对照原文",min:25},
-     {id:"or-calc",m:"竞赛",n:"数分专题（晚）",d:"裴礼文《数学分析中的典型问题与方法》",min:120}],
+     {id:"or-calc",m:"竞赛",n:"数分专题（晚）",d:"裴礼文《数学分析中的典型问题与方法》",min:120},
+     {id:"gym-push",m:"健身",n:"推：胸 · 肩 · 三头",d:"器械推胸 / 上斜哑铃 / 肩推 / 侧平举 / 三头",min:60}],
   2:[{id:"en-vocab",m:"英语",n:"词汇",d:"新词 50 + 复习前日",min:15},
      {id:"en-read",m:"英语",n:"仔细阅读",d:"1 篇：做题 + 逐句精读 + 生词入库",min:25},
-     {id:"or-calc",m:"竞赛",n:"数分专题（晚）",d:"裴礼文《数学分析中的典型问题与方法》",min:120}],
+     {id:"or-calc",m:"竞赛",n:"数分专题（晚）",d:"裴礼文《数学分析中的典型问题与方法》",min:120},
+     {id:"gym-pull",m:"健身",n:"拉：背 · 后束 · 二头",d:"引体 / 划船 / 面拉 / 弯举",min:60}],
   3:[{id:"en-vocab",m:"英语",n:"词汇",d:"新词 50 + 复习前日",min:15},
      {id:"en-listen",m:"英语",n:"听力精听",d:"真题听力 3 遍",min:25},
-     {id:"or-drill",m:"竞赛",n:"数分 / 高代刷题（晚）",d:"钱吉林题解精粹",min:120}],
+     {id:"or-drill",m:"竞赛",n:"数分 / 高代刷题（晚）",d:"钱吉林题解精粹",min:120},
+     {id:"gym-legs",m:"健身",n:"腿：股四 · 腘绳 · 臀 · 小腿",d:"深蹲（架内）/ 腿举 / 腿弯举 / 臀推 / 提踵",min:60}],
   4:[{id:"en-vocab",m:"英语",n:"词汇",d:"新词 50 + 复习前日",min:15},
      {id:"en-read",m:"英语",n:"仔细阅读",d:"1 篇 + 精读",min:25},
-     {id:"or-drill",m:"竞赛",n:"数分 / 高代刷题（晚）",d:"钱吉林题解精粹",min:120}],
+     {id:"or-drill",m:"竞赛",n:"数分 / 高代刷题（晚）",d:"钱吉林题解精粹",min:120},
+     {id:"gym-push",m:"健身",n:"推：胸 · 肩 · 三头",d:"器械推胸 / 上斜哑铃 / 肩推 / 侧平举 / 三头",min:60}],
   5:[{id:"en-vocab",m:"英语",n:"词汇",d:"新词 50 + 复习前日",min:15},
      {id:"en-listen",m:"英语",n:"听力精听",d:"真题听力 3 遍",min:25},
-     {id:"or-algebra2",m:"竞赛",n:"高代专题（晚）",d:"钱吉林《高等代数题解精粹》",min:120}],
+     {id:"or-algebra2",m:"竞赛",n:"高代专题（晚）",d:"钱吉林《高等代数题解精粹》",min:120},
+     {id:"gym-pull",m:"健身",n:"拉：背 · 后束 · 二头",d:"引体 / 划船 / 面拉 / 弯举",min:60}],
   6:[{id:"en-vocab",m:"英语",n:"词汇",d:"新词 50 + 复习前日",min:15},
      {id:"en-read",m:"英语",n:"仔细阅读",d:"1 篇 + 精读",min:25},
      {id:"or-calc",m:"竞赛",n:"数分（上午）",d:"裴礼文 / 历年真题",min:120},
-     {id:"eng-ortools",m:"工程",n:"OR-Tools 练手（下午）",d:"官方教程逐个跑通模型",min:120}]
+     {id:"eng-ortools",m:"工程",n:"OR-Tools 练手（下午）",d:"官方教程逐个跑通模型",min:120},
+     {id:"gym-legs",m:"健身",n:"腿：股四 · 腘绳 · 臀 · 小腿",d:"深蹲（架内）/ 腿举 / 腿弯举 / 臀推 / 提踵",min:60}]
 };
 
 const MILESTONES = [
@@ -670,11 +788,66 @@ const MILESTONES = [
   {n:"预推免（主战场）",s:"名额更多、对跨背景包容度更高",d:null}
 ];
 
+/* ---------------- 三分化训练计划（健身房 · 方案 A：推 / 拉 / 腿 ×2） ----------------
+   动作筛选原则（按用户判据）：**脱手会砸人的不做**。
+   → 平板杠铃卧推、站姿杠铃肩推这类「大重量 + 无保护架 + 脱手即砸躯干」的动作全部剔除，
+     换成坐姿器械推胸 / 哑铃上斜推 / 固定轨迹肩推。
+   → 深蹲保留但注明「必须在深蹲架内、安全杆调到最低点略低于底部」；
+     硬拉建议六角杠 / 哑铃。引体、悬挂类不砸人，保留。
+   data 与用户自定义同库（DB.gym），随导出备份与跨设备同步一起走。 */
+const GYM_PLAN = {
+  name:"三分化 · 方案 A",
+  goal:"减脂增肌",
+  // 0=周日 … 6=周六，值为 routines 的下标；-1 = 休息日
+  days:[-1,0,1,2,0,1,2],
+  routines:[
+    { id:"push", name:"推", sub:"胸 · 肩 · 三头", ex:[
+      {n:"坐姿器械推胸",   s:"胸",     sets:4, reps:"8–10",  rest:"2 min", q:"手把与胸同高、肘别飞太开，顶端不锁死肘。替代杠铃卧推"},
+      {n:"上斜哑铃推举",   s:"上胸",   sets:3, reps:"8–10",  rest:"90 s",  q:"凳角 30–45°，哑铃在胸口正上方走弧线"},
+      {n:"哑铃飞鸟 / 绳索夹胸", s:"胸", sets:3, reps:"12–15", rest:"60 s",  q:"感受胸肌拉伸与挤压，重量别贪"},
+      {n:"固定轨迹肩推",   s:"肩前中", sets:3, reps:"10–12", rest:"90 s",  q:"靠背贴紧，肘在身体前 30° 平面"},
+      {n:"哑铃侧平举",     s:"肩中",   sets:4, reps:"12–15", rest:"60 s",  q:"肘微屈，抬到与肩平，别甩"},
+      {n:"绳索下压",       s:"三头",   sets:3, reps:"10–12", rest:"60 s",  q:"大臂夹紧体侧，只有小臂动"},
+      {n:"绳索过顶臂屈伸", s:"三头",   sets:3, reps:"12–15", rest:"60 s",  q:"大臂固定、拉伸三头长头"}
+    ]},
+    { id:"pull", name:"拉", sub:"背 · 后束 · 二头", ex:[
+      {n:"引体向上",           s:"背",   sets:4, reps:"6–10",  rest:"2 min", q:"做不满就改高位下拉，或加辅助带"},
+      {n:"杠铃划船",           s:"背",   sets:4, reps:"8–10",  rest:"90 s",  q:"躯干约 45°，拉到下腹，不弓腰"},
+      {n:"坐姿绳索划船",       s:"背",   sets:4, reps:"10–12", rest:"90 s",  q:"挺胸、肩胛先动再屈肘"},
+      {n:"单臂绳索下拉 / 直臂下压", s:"背阔", sets:3, reps:"12–15", rest:"60 s", q:"只有肩关节在动，肘角固定"},
+      {n:"面拉",               s:"后束", sets:3, reps:"15–20", rest:"60 s",  q:"拉向额头，手肘高于手腕"},
+      {n:"绳索 / 器械弯举",    s:"二头", sets:3, reps:"10–12", rest:"60 s",  q:"肘固定不前后摆"},
+      {n:"锤式弯举",           s:"二头", sets:3, reps:"12–15", rest:"60 s",  q:"对握，练肱肌与前臂"}
+    ]},
+    { id:"legs", name:"腿", sub:"股四 · 腘绳 · 臀 · 小腿", ex:[
+      {n:"杠铃深蹲 / 腿举",   s:"股四/臀", sets:4, reps:"8–12", rest:"2–3 min", q:"用杠铃必须在深蹲架内并把安全杆调到最低点略低于底部；没架子就用腿举"},
+      {n:"哈克深蹲（器械）",  s:"股四",   sets:3, reps:"10–12", rest:"2 min",   q:"背贴紧靠垫，膝盖跟脚尖同向"},
+      {n:"腿屈伸",            s:"股四",   sets:3, reps:"12–15", rest:"60 s",    q:"顶峰稍停，别用惯性踢"},
+      {n:"俯卧 / 坐姿腿弯举", s:"腘绳",   sets:4, reps:"10–12", rest:"60 s",    q:"慢放 2 秒，腘绳要靠离心长力量"},
+      {n:"臀推",              s:"臀",     sets:3, reps:"12–15", rest:"90 s",    q:"下巴微收，顶端夹臀别过伸腰"},
+      {n:"站姿 / 坐姿提踵",   s:"小腿",   sets:4, reps:"15–20", rest:"45 s",    q:"全幅度：最低点充分拉伸"},
+      {n:"悬垂举腿 / 卷腹",   s:"核心",   sets:3, reps:"15",    rest:"45 s",    q:"骨盆后倾，别只摆腿"}
+    ]}
+  ],
+  notes:[
+    {t:"有氧", b:"安排在推日、拉日之后做 15–25 分钟低强度（坡度走 / 椭圆）；腿日之后不做。或单独周日 30–40 分钟。这样不干扰腿日力量表现。"},
+    {t:"热量与蛋白", b:"缺口 300–500 kcal/天（缺口太大会掉肌肉），蛋白 1.6–2.2 g/kg 体重，其余热量分给碳水和脂肪。减脂期力量不掉＝成功。"},
+    {t:"恢复", b:"每天睡够 7 小时以上，比多练一组更值钱。同一肌群两次训练间隔 ≥48 小时，所以一周 6 练是推 / 拉 / 腿 循环两轮。"},
+    {t:"热身", b:"主动作前 2 组递增重量热身组，另加 5 分钟动态拉伸（不是静态拉伸）。"}
+  ]
+};
+
+/* 每日训练任务（0=周日…6=周六），与「推 / 拉 / 腿」对应；周日为休息日 */
+const GYM_DAY_TASKS = {
+  0:[], 1:["推"], 2:["拉"], 3:["腿"], 4:["推"], 5:["拉"], 6:["腿"]
+};
+
 /* ============================== 存储 ============================== */
 const KEY = "orstudy.v1";
 const KEY_BAK = "orstudy.v1.backup";
 const SEMESTER_START = "2026-08-31";   // 校历：第 1 周的周一
-const DEF = () => ({settings:{semesterStart:SEMESTER_START},checkins:{},extra:{},customTasks:{},updated:0});
+const DEF = () => ({settings:{semesterStart:SEMESTER_START},checkins:{},extra:{},customTasks:{},gymSkipped:{},
+  gym:{plan:JSON.parse(JSON.stringify(GYM_PLAN)), log:[]}, updated:0});
 
 /* 清洗任意来源的数据为合法结构，防止损坏的存储把应用搞崩 */
 function sanitize(raw){
@@ -706,6 +879,77 @@ function sanitize(raw){
   }
   out.updated = (typeof r.updated === "number" && isFinite(r.updated)) ? r.updated : 0;
   out.taskSchema = (typeof r.taskSchema === "number") ? r.taskSchema : 0;
+  /* 记录「用户主动删掉了某天的健身任务」，升级时不再自动塞回 */
+  out.gymSkipped = {};
+  if(r.gymSkipped && typeof r.gymSkipped === "object" && !Array.isArray(r.gymSkipped)){
+    Object.keys(r.gymSkipped).forEach(k=>{ if(r.gymSkipped[k]) out.gymSkipped[k] = true; });
+  }
+  /* 健身：计划 / 打卡记录 / 逐组状态。
+     ⚠️ state 必须一起清洗保留：它存着「每组是否完成 + 重量 + 次数」，
+        曾经漏掉它 → 刷新后所有勾选和重量凭空消失（e2e 抓到的真实 bug）。 */
+  out.gym = {plan: JSON.parse(JSON.stringify(GYM_PLAN)), log: [], state:{}};
+  const g = (r.gym && typeof r.gym === "object" && !Array.isArray(r.gym)) ? r.gym : null;
+  if(g){
+    const p = (g.plan && typeof g.plan === "object" && !Array.isArray(g.plan)) ? g.plan : null;
+    if(p){
+      if(typeof p.name === "string" && p.name) out.gym.plan.name = p.name;
+      if(typeof p.goal === "string" && p.goal) out.gym.plan.goal = p.goal;
+      if(Array.isArray(p.routines)){
+        const rs = p.routines.filter(x=>x && typeof x==="object" && typeof x.name==="string" && Array.isArray(x.ex))
+          .map((x,i)=>({id:typeof x.id==="string"?x.id:("r"+i), name:x.name,
+            sub:typeof x.sub==="string"?x.sub:"",
+            ex:x.ex.filter(e=>e && typeof e.n==="string").map(e=>({
+              n:e.n,
+              s:typeof e.s==="string"?e.s:"",
+              sets:(typeof e.sets==="number"&&e.sets>0&&e.sets<=10)?Math.round(e.sets):3,
+              reps:(typeof e.reps==="string"&&e.reps)?e.reps:String(e.reps||"8–10"),
+              rest:(typeof e.rest==="string"&&e.rest)?e.rest:"90 s",
+              q:typeof e.q==="string"?e.q:""
+            }))})).filter(x=>x.ex.length>0);
+        if(rs.length) out.gym.plan.routines = rs;
+      }
+      if(Array.isArray(p.days)){
+        out.gym.plan.days = [0,1,2,3,4,5,6].map(i=>{
+          const v = p.days[i];
+          return (typeof v==="number" && v>=0 && v<out.gym.plan.routines.length) ? v : -1;
+        });
+      }
+      if(Array.isArray(p.notes)){
+        out.gym.plan.notes = p.notes.filter(x=>x && typeof x==="object" && typeof x.t==="string" && typeof x.b==="string")
+          .map(x=>({t:x.t,b:x.b}));
+      }
+    }
+    if(Array.isArray(g.log)){
+      out.gym.log = g.log.filter(x=>x && typeof x==="object" && typeof x.d==="string" && typeof x.rn==="string")
+        .map(x=>({
+          d:x.d, rn:x.rn,
+          w:(typeof x.w==="number"&&isFinite(x.w))?Math.round(x.w):0,
+          sets:(typeof x.sets==="number"&&isFinite(x.sets))?x.sets:0,
+          vol:(typeof x.vol==="number"&&isFinite(x.vol))?Math.round(x.vol):0,
+          ex:Array.isArray(x.ex) ? x.ex.filter(e=>e && typeof e.n==="string")
+                .map(e=>({n:e.n, done:(typeof e.done==="number"&&isFinite(e.done))?e.done:0})) : [],
+          wts:Array.isArray(x.wts) ? x.wts.filter(e=>e && typeof e.n==="string")
+                .map(e=>({n:e.n, kg:(typeof e.kg==="number"&&isFinite(e.kg))?e.kg:0})) : []
+        }));
+    }
+    if(g.state && typeof g.state === "object" && !Array.isArray(g.state)){
+      Object.keys(g.state).forEach(function(k){
+        const v = g.state[k];
+        if(!v || typeof v !== "object") return;
+        const one = {w:{}, done:{}, reps:{}};
+        ["w","done","reps"].forEach(function(f){
+          const src = (v[f] && typeof v[f] === "object" && !Array.isArray(v[f])) ? v[f] : {};
+          Object.keys(src).forEach(function(name){
+            const num = Number(src[name]);
+            if(isFinite(num) && num > 0) one[f][name] = num;
+          });
+        });
+        if(Object.keys(one.w).length || Object.keys(one.done).length || Object.keys(one.reps).length){
+          out.gym.state[k] = one;
+        }
+      });
+    }
+  }
   return out;
 }
 /* 判断主存储是否「确实被用过」。只看 checkins/extra 是不够的：
@@ -726,7 +970,7 @@ function loadDB(){
   return sanitize(raw);
 }
 /* 自定义任务表：首次使用或导入旧数据时，用内置默认值补全。可传入 db 以便在加载路径里使用 */
-const TASK_SCHEMA = 3;
+const TASK_SCHEMA = 4;
 /* v1 时代每日任务的 id 签名（迁移用：只替换「用户没改过的那些天」，自定义过的保持不动） */
 const V1_IDS = {
   0:"en-vocab,en-write,or-algebra,eng-project",
@@ -738,6 +982,17 @@ const V1_IDS = {
   6:"en-vocab,en-read,or-calc,eng-ortools"
 };
 const OLD_DEFAULT_START = "2026-09-07";   // 曾经的推测默认值（要纠正掉）
+/* v3 时代「内置默认任务」的样子（还没有健身任务）。
+   用来判断：某天是否被用户改动过、健身任务是被用户删掉还是从来没排过。 */
+function v3DefaultTasks(d){ return (DEFAULT_TASKS[d]||[]).filter(t=>t.m!=="健身"); }
+function taskListSame(a, b){
+  if(!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+  for(let i=0;i<b.length;i++){
+    const x = a[i] || {}, y = b[i] || {};
+    if(x.id !== y.id || x.m !== y.m || x.n !== y.n) return false;
+  }
+  return true;
+}
 function ensureCustomTasks(db){
   db = db || DB;   // 防御：不传参时操作当前库
   if(!db.customTasks || typeof db.customTasks !== "object" || Array.isArray(db.customTasks)){
@@ -746,24 +1001,118 @@ function ensureCustomTasks(db){
   [0,1,2,3,4,5,6].forEach(d=>{
     if(!Array.isArray(db.customTasks[d])) db.customTasks[d] = JSON.parse(JSON.stringify(DEFAULT_TASKS[d]));
   });
-  if(!db.taskSchema || db.taskSchema < TASK_SCHEMA){
+  if(!db.gymSkipped || typeof db.gymSkipped !== "object" || Array.isArray(db.gymSkipped)) db.gymSkipped = {};
+  if(!db.taskSchema){ db.taskSchema = 0; }
+  if(db.taskSchema < TASK_SCHEMA){
     // (a) v1 → v2：周一/三/五新增数学任务（只动没被自定义过的天）
-    //     注意用 !db.taskSchema 兜住「没有该字段」的老数据（undefined < 2 是 false，会漏迁移）
-    if(!db.taskSchema || db.taskSchema < 2){
+    //     注意用 taskSchema<2 兜住「没有该字段」的老数据（undefined < 2 是 false，会漏迁移）
+    if(db.taskSchema < 2){
       [0,1,2,3,4,5,6].forEach(d=>{
         const cur = (db.customTasks[d]||[]).map(t=>t.id).join(",");
         if(cur === V1_IDS[d]) db.customTasks[d] = JSON.parse(JSON.stringify(DEFAULT_TASKS[d]));
       });
     }
     // (b) v2 → v3：校历修正 —— 若还是旧的推测默认值，换成真实开学日期 2026-08-31
-    if(db.settings && db.settings.semesterStart === OLD_DEFAULT_START){
+    if(db.taskSchema < 3 && db.settings && db.settings.semesterStart === OLD_DEFAULT_START){
       db.settings.semesterStart = SEMESTER_START;
+    }
+    // (c) v3 → v4：新增健身任务（推 / 拉 / 腿）。规则：
+    //     ① 用户改动过的那天（与 v3 默认不一致）→ 整体不动，尊重他的增删；
+    //     ② 仍是 v3 默认的那天 → 按默认增量补齐（缺的通常是新增的健身任务），已有的不重复加；
+    //     ③ 他在任务弹窗里明确删掉的健身任务 → 记在 gymSkipped，永不塞回。
+    //     ⚠️ 必须写回「新数组」：老数据的 customTasks[d] 可能和内置默认共用同一个数组对象，
+    //       直接改动会把内置默认本身弄脏（之后「等于 v3 默认」的判定就再也不成立）。
+    if(db.taskSchema < 4){
+      [0,1,2,3,4,5,6].forEach(d=>{
+        const target = v3DefaultTasks(d);
+        if(!target.length) return;
+        const list = db.customTasks[d] || [];
+        if(!taskListSame(list, target)) return;         // ① 用户改过 → 不碰
+        const want = (DEFAULT_TASKS[d]||[]).filter(t=>!(db.gymSkipped[d] && t.m==="健身"));
+        if(want.length === list.length) return;         // 已经补齐过
+        db.customTasks[d] = want.map(t=>JSON.parse(JSON.stringify(t)));
+      });
     }
     db.taskSchema = TASK_SCHEMA;
   }
   return db;
 }
 let DB = ensureCustomTasks(loadDB());
+
+/* ---------------- 健身：数据层辅助 ---------------- */
+function gymPlan(){ return (DB && DB.gym && DB.gym.plan) ? DB.gym.plan : GYM_PLAN; }
+function gymRoutines(){ return (gymPlan().routines) || []; }
+function gymRoutine(i){ return gymRoutines()[i] || null; }
+function gymDayIdx(y,m,d){
+  if(typeof y === "string") return parseYmd(y).getDay();
+  return new Date(y, m, d).getDay();
+}
+function gymLogFor(dateStr){
+  const L = (DB.gym && Array.isArray(DB.gym.log)) ? DB.gym.log : [];
+  for(let i=0;i<L.length;i++){ if(L[i] && L[i].d === dateStr) return L[i]; }
+  return null;
+}
+/* 今日该练哪套：plan.days 里今天对应的下标，-1/越界 = 休息日 */
+function gymTodayRoutineIdx(){
+  const now = new Date();
+  const days = gymPlan().days || [];
+  const v = days[now.getDay()];
+  return (typeof v === "number" && v >= 0 && v < gymRoutines().length) ? v : -1;
+}
+/* 取出（必要时初始化）某天某套训练里每个动作的完成情况：{w:重量, done:完成组数, reps:次数}。
+   注意用 dateStr|训练名 作键：同一天换过训练也不会串数据，历史记录靠它还原。 */
+function gymStateOf(dateStr, rn, ex, reps){
+  if(!DB.gym) DB.gym = {plan:JSON.parse(JSON.stringify(GYM_PLAN)), log:[], state:{}};
+  if(!DB.gym.state || typeof DB.gym.state !== "object") DB.gym.state = {};
+  const st = DB.gym.state;
+  const cur = st[dateStr+"|"+rn] || (st[dateStr+"|"+rn] = {w:{}, done:{}, reps:{}});
+  if(!cur.w) cur.w = {};
+  if(!cur.done) cur.done = {};
+  if(!cur.reps) cur.reps = {};
+  if(ex && cur.reps[ex] === undefined) cur.reps[ex] = reps;
+  return cur;
+}
+/* 把「今天实际练的」写成打卡记录。sets=0 则删除当天记录（取消打卡要能撤销）。 */
+function gymSaveState(dateStr, idx, dayIdx){
+  const r = gymRoutine(idx);
+  if(!r){ return; }
+  if(!DB.gym) DB.gym = {plan:JSON.parse(JSON.stringify(GYM_PLAN)), log:[]};
+  if(!Array.isArray(DB.gym.log)) DB.gym.log = [];
+  const st = DB.gym.state || (DB.gym.state = {});
+  const key = dateStr+"|"+r.name;
+  const cur = st[key] || (st[key] = {w:{}, done:{}, reps:{}});
+  let sets = 0, vol = 0;
+  const ex = [], wts = [];
+  r.ex.forEach(function(e){
+    const n = Number(cur.done && cur.done[e.n]) || 0;
+    const w = Number(cur.w && cur.w[e.n]) || 0;
+    const reps = Number(cur.reps && cur.reps[e.n]) || (parseInt(e.reps,10) || 0);
+    sets += n;
+    ex.push({n:e.n, done:n});
+    wts.push({n:e.n, kg:w});
+    if(w > 0) vol += w * reps * n;
+  });
+  const log = DB.gym.log;
+  for(let i=0;i<log.length;i++){
+    if(log[i] && log[i].d === dateStr){ log.splice(i,1); break; }
+  }
+  if(sets > 0){
+    log.unshift({d:dateStr, w:dayIdx, rn:r.name, sets:sets, vol:Math.round(vol), ex:ex, wts:wts});
+  }
+}
+/* 该动作上次练时的重量（换重量 / 预填用）—— 只看今天之前的记录 */
+function gymLastWeight(exName){
+  const L = (DB.gym && Array.isArray(DB.gym.log)) ? DB.gym.log : [];
+  const today = ymd(new Date());
+  for(let i=0;i<L.length;i++){
+    const e = L[i];
+    if(!e || e.d >= today || !Array.isArray(e.wts)) continue;
+    for(let j=0;j<e.wts.length;j++){
+      if(e.wts[j] && e.wts[j].n === exName && e.wts[j].kg > 0) return e.wts[j].kg;
+    }
+  }
+  return 0;
+}
 
 const save = () => {
   try{
@@ -851,7 +1200,7 @@ async function syncNow(manual){
     if(d < 0){
       if(!remote || !remote.checkins) throw new Error("云端没有有效数据，不覆盖本地");
       DB = ensureCustomTasks(sanitize(remote));
-      save(); renderAll();
+      save(); renderAll(); renderAll();
       SYNC.status = "已从云端拉取";
     }else if(d > 0){
       if(mode === "generic"){
@@ -1306,7 +1655,159 @@ function renderSyncUI(){
   }
 }
 
-function renderAll(){ renderToday(); renderSchedule(); renderStats(); }
+/* ---------------- 健身：渲染 ---------------- */
+let gymViewIdx = null;   // null = 跟随「今天该练哪套」
+let hdGymText = null;    // 切换到健身 tab 时顶栏显示的内容
+function gymCurRoutineIdx(){ return gymViewIdx === null ? gymTodayRoutineIdx() : gymViewIdx; }
+
+function gymSetButtons(idx, todayIdx){
+  if(idx === todayIdx) return '<span class="w">今天是这套</span>';
+  return '<button data-set="'+idx+'">设为今天</button>';
+}
+function gymSetsRow(dateStr, r, e){
+  const st = (DB.gym && DB.gym.state) ? DB.gym.state : {};
+  const cur = st[dateStr+"|"+r.name] || {};
+  const doneN = Number(cur.done && cur.done[e.n]) || 0;
+  const kg = (cur.w && cur.w[e.n]) ? cur.w[e.n] : "";
+  const last = gymLastWeight(e.n);
+  const reps = (cur.reps && cur.reps[e.n]) || (parseInt(e.reps,10) || 0);
+  let h = '<div class="sets">';
+  for(let i=1;i<=e.sets;i++){
+    h += '<button class="sb'+(i<=doneN?" done":"")+'" data-date="'+dateStr+'" data-r="'+r.name+
+         '" data-ex="'+e.n+'" data-set="'+i+'">'+i+'</button>';
+  }
+  h += '<input class="kg" type="text" inputmode="decimal" data-date="'+dateStr+'" data-r="'+r.name+
+       '" data-ex="'+e.n+'" placeholder="kg" value="'+kg+'">';
+  if(last > 0 && !kg) h += '<button class="sw" data-date="'+dateStr+'" data-r="'+r.name+
+       '" data-ex="'+e.n+'" data-w="'+last+'">上次 '+last+'kg</button>';
+  h += '<input type="hidden" class="rp" data-date="'+dateStr+'" data-r="'+r.name+
+       '" data-ex="'+e.n+'" value="'+reps+'"></div>';
+  return h;
+}
+function gymDayHtml(dateStr, idx){
+  const r = gymRoutine(idx);
+  if(!r) return '<div class="note" style="margin:0">今天是休息日 —— 可以散步 / 拉伸 / 或者只做 30–40 分钟低强度有氧。</div>';
+  const now = new Date();
+  const dayIdx = (typeof dateStr === "string") ? parseYmd(dateStr).getDay() : now.getDay();
+  const isToday = (dateStr === ymd(now));
+  const lg = gymLogFor(dateStr);
+  let h = '<div class="day" style="padding-top:0"><div class="h"><span>'+r.name+'日 · '+r.sub+'</span>'+
+          '<span class="w">'+(isToday ? "今天" : WEEKNAME[dayIdx]) + ' · 共 '+r.ex.length+' 个动作'+
+          (lg ? ' · 已打卡 '+lg.sets+' 组' : '') + '</span></div></div>';
+  h += r.ex.map(function(e){
+    return '<div class="ex"><div class="t"><div class="n">'+e.n+
+      (e.s ? ' <span class="s">'+e.s+'</span>' : '')+'</div>'+
+      '<div class="r">'+e.sets+' 组 × '+e.reps+' · 休息 '+e.rest+'</div></div>'+
+      (e.q ? '<div class="q">'+e.q+'</div>' : '')+
+      gymSetsRow(dateStr, r, e) + '</div>';
+  }).join("");
+  return h;
+}
+function gymPlanListHtml(idx){
+  const r = gymRoutine(idx);
+  if(!r) return "";
+  return '<div class="day" style="padding-top:0"><div class="h"><span>'+r.name+'日 · '+r.sub+
+         '</span><span class="w">'+r.ex.length+' 个动作 · 约 '+
+         r.ex.reduce(function(a,e){ return a + e.sets; },0)+' 组</span></div></div>' +
+    r.ex.map(function(e,i){
+      return '<div class="ex"><div class="t"><div class="n">'+(i+1)+'. '+e.n+
+        (e.s ? ' <span class="s">'+e.s+'</span>' : '')+'</div>'+
+        '<div class="r">'+e.sets+'×'+e.reps+' · '+e.rest+'</div></div>'+
+        (e.q ? '<div class="q">'+e.q+'</div>' : '')+'</div>';
+    }).join("");
+}
+function gymKpis(dateStr){
+  const L = (DB.gym && Array.isArray(DB.gym.log)) ? DB.gym.log : [];
+  const mon = new Date(); mon.setDate(mon.getDate() - ((mon.getDay()+6)%7)); mon.setHours(0,0,0,0);
+  const week = L.filter(function(e){
+    if(!e || !e.d) return false;
+    return midnight(parseYmd(e.d)) >= mon;
+  }).length;
+  const lg = gymLogFor(dateStr);
+  document.getElementById("gym-k1").textContent = week + "/6";
+  document.getElementById("gym-k2").textContent = lg ? (lg.sets + " 组") : "0 组";
+  document.getElementById("gym-k3").textContent = lg ? String(lg.vol) : "0";
+}
+function renderLogModal(){
+  const L = (DB.gym && Array.isArray(DB.gym.log)) ? DB.gym.log.slice() : [];
+  const box = document.getElementById("lm-body");
+  const total = L.reduce(function(a,e){ return a + (e.sets||0); },0);
+  let h = '<div class="note" style="margin-top:0">共 '+L.length+' 次训练 · 累计 '+total+
+          ' 组 · 记录存在本机（随导出备份 / 跨设备同步一起走）</div>';
+  if(!L.length){
+    h += '<div style="color:var(--muted);font-size:13.5px;padding:6px 0">还没有记录 —— 在「今日训练」里点掉第一组就会出现。</div>';
+  }else{
+    h += '<div class="lg" style="color:var(--muted);font-weight:600"><div>日期</div><div>训练</div><div class="st">组数</div><div class="vl">容量</div></div>';
+    h += L.slice(0,30).map(function(e){
+      const dt = parseYmd(e.d);
+      return '<div class="lg"><div class="dt">'+(dt.getMonth()+1)+'/'+dt.getDate()+' '+WEEKNAME[dt.getDay()]+
+        '</div><div class="rn">'+e.rn+'日</div><div class="st">'+e.sets+' 组</div><div class="vl">'+
+        (e.vol||0)+' kg</div></div>';
+    }).join("");
+  }
+  h += '<div class="frow"><div class="full note" style="margin-bottom:0">容量 = 重量 × 次数 × 完成组数（没填重量的动作不计入）。同动作、同组数下容量上升 = 你在进步。</div></div>';
+  box.innerHTML = h;
+}
+function renderGym(){
+  if(!document.getElementById("v-gym")) return;
+  const now = new Date(), todayStr = ymd(now), todayIdx = gymTodayRoutineIdx();
+  document.getElementById("gym-sub").textContent =
+    gymPlan().name + " · 每周 6 练 · 每个肌群每周 2 次 · 目标：" + (gymPlan().goal || "—");
+
+  // 本周安排（今天起 7 天）
+  let wk = '<div class="grid7"><div class="d">一</div><div class="d">二</div><div class="d">三</div><div class="d">四</div>'+
+           '<div class="d">五</div><div class="d">六</div><div class="d">日</div></div>';
+  for(let k=0;k<7;k++){
+    const d = new Date(now); d.setDate(now.getDate()+k);
+    const ds = ymd(d), di = d.getDay(), ri = gymPlan().days[di];
+    const r = (typeof ri === "number" && ri >= 0) ? gymRoutine(ri) : null;
+    const lg = gymLogFor(ds);
+    wk += '<div class="day'+(r?"":" free")+'" style="padding:8px 0">'+
+      '<div><b>'+(d.getMonth()+1)+'/'+d.getDate()+' '+WEEKNAME[di]+'</b>'+(k===0?' <span class="tag" style="border-style:solid">今天</span>':'')+
+      ' · '+(r ? (r.name+'日 <span class="w">'+r.sub+'</span>') : "休息")+
+      (lg ? ' <span class="chip 工程">已打卡 '+lg.sets+' 组</span>' : "")+'</div></div>';
+  }
+  document.getElementById("gym-week").innerHTML = wk;
+
+  // 今日训练
+  document.getElementById("gym-today").innerHTML = gymDayHtml(todayStr, todayIdx);
+
+  // 计划切换
+  document.getElementById("gym-switch").innerHTML = gymRoutines().map(function(r,i){
+    return '<button data-gymday="'+i+'" class="'+(i===gymCurRoutineIdx()?"on":"")+'">'+r.name+
+      '<span class="w">'+r.ex.length+' 动作</span></button>';
+  }).join("");
+  const ci = gymCurRoutineIdx(), cr = gymRoutine(ci);
+  document.getElementById("gym-plan-title").innerHTML = cr
+    ? (cr.name+'日 · '+cr.sub+' '+gymSetButtons(ci, todayIdx))
+    : "—";
+  document.getElementById("gym-plan-meta").textContent = cr
+    ? (cr.ex.reduce(function(a,e){ return a + e.sets; },0)+" 组 · 约 60–75 分钟")
+    : "";
+  document.getElementById("gym-plan").innerHTML = gymPlanListHtml(ci);
+
+  // 有氧与吃
+  document.getElementById("gym-extra").innerHTML = (gymPlan().notes||[]).map(function(n){
+    return '<div class="day" style="padding:9px 0"><div class="h" style="margin-bottom:2px"><span>'+n.t+
+      '</span></div><div style="font-size:13.5px">'+n.b+'</div></div>';
+  }).join("");
+
+  gymKpis(todayStr);
+}
+
+function renderAll(){
+  renderToday(); renderSchedule(); renderStats();
+  const gm = document.querySelector('.nav button[data-v="gym"]');
+  hdGymText = (gm && gm.classList && gm.classList.contains("on")) ? (function(){
+    const i = gymTodayRoutineIdx(), r = gymRoutine(i);
+    return r ? ("今天：" + r.name + "日 · " + r.sub) : "今天：休息日";
+  })() : null;
+  renderGym();
+  if(hdGymText !== null){
+    const el = document.getElementById("hdsub");
+    if(el) el.textContent = hdGymText;
+  }
+}
 
 /* ============================== 交互 ============================== */
 document.querySelectorAll(".nav button").forEach(b=>{
@@ -1436,7 +1937,13 @@ function renderTaskModal(){
   ).join("") || '<div style="color:var(--muted);font-size:13.5px;padding:10px 0">这一天没有任务，在下面添加。</div>';
   document.querySelectorAll("#tm-list [data-del]").forEach(b=>{
     b.addEventListener("click",()=>{
+      const del = (DB.customTasks[tmDay]||[]).filter(t=>t.id===b.dataset.del)[0];
       DB.customTasks[tmDay] = DB.customTasks[tmDay].filter(t=>t.id!==b.dataset.del);
+      // 用户主动删掉健身任务 → 记一笔，以后升级不再自动塞回来
+      if(del && del.m === "健身"){
+        if(!DB.gymSkipped) DB.gymSkipped = {};
+        DB.gymSkipped[tmDay] = true;
+      }
       save(); renderTaskModal(); renderAll();
     });
   });
@@ -1459,12 +1966,183 @@ document.getElementById("tm-add").addEventListener("click",()=>{
 document.getElementById("tm-restore").addEventListener("click",()=>{
   if(!confirm("把"+WEEKNAME[tmDay]+"恢复成内置默认任务？你添加和删除的都会还原。")) return;
   DB.customTasks[tmDay] = JSON.parse(JSON.stringify(DEFAULT_TASKS[tmDay]));
+  if(DB.gymSkipped) delete DB.gymSkipped[tmDay];   // 恢复默认 → 也恢复健身任务
   save(); renderTaskModal(); renderAll();
 });
 document.getElementById("tm-close").addEventListener("click",closeTaskModal);
 document.getElementById("task-modal").addEventListener("click",e=>{ if(e.target.id==="task-modal") closeTaskModal(); });
 document.getElementById("btn-edit-tasks").addEventListener("click",openTaskModal);
 document.getElementById("btn-edit-tasks2").addEventListener("click",openTaskModal);
+
+/* ---------- 健身：交互 ---------- */
+function gymRoutineIdxByName(rn){
+  const rs = gymRoutines();
+  for(let i=0;i<rs.length;i++){ if(rs[i].name === rn) return i; }
+  return gymTodayRoutineIdx();
+}
+function gymSetAsToday(i){
+  if(typeof i !== "number" || i < 0 || i >= gymRoutines().length) return;
+  gymPlan().days[new Date().getDay()] = i;
+  if(!DB.gym) DB.gym = {};
+  DB.gym.plan = gymPlan();
+  save(); renderGym(); renderToday();
+}
+document.getElementById("gym-today").addEventListener("input",function(ev){
+  const el = ev.target;
+  if(!el || !el.dataset || !el.dataset.ex) return;
+  const rn = el.dataset.r, ex = el.dataset.ex, dateStr = el.dataset.date;
+  if(el.classList.contains("kg")){
+    const cur = gymStateOf(dateStr, rn, ex, 8);
+    const v = String(el.value||"").replace(/[^\d.]/g,"").slice(0,6);
+    if(v !== el.value) el.value = v;
+    cur.w[ex] = (v === "") ? null : (Number(v)||0);
+    const rp = document.querySelector('#gym-today .rp[data-ex="'+ex+'"][data-r="'+rn+'"]');
+    if(rp && !Number(rp.value)) rp.value = cur.reps[ex];
+    // 体重/重量改动立即结算容量与记录（不能等下一次点组才更新）
+    gymSaveState(dateStr, gymRoutineIdxByName(rn), gymDayIdx(dateStr));
+    save(); gymKpis(dateStr);
+  }
+});
+document.getElementById("gym-today").addEventListener("change",function(ev){
+  const el = ev.target;
+  if(el && el.classList && el.classList.contains("rp") && el.dataset.ex){
+    const cur = gymStateOf(el.dataset.date, el.dataset.r, el.dataset.ex, 8);
+    cur.reps[el.dataset.ex] = Math.max(1, Math.min(50, Number(el.value)||8));
+    save();
+  }
+  renderGym();
+});
+document.getElementById("gym-today").addEventListener("click",function(ev){
+  const el = ev.target.closest ? ev.target.closest("button") : null;
+  if(!el || !el.dataset || !el.dataset.ex) return;
+  const dateStr = el.dataset.date || ymd(new Date());
+  const rn = el.dataset.r, ex = el.dataset.ex;
+  const idx = gymRoutineIdxByName(rn);
+  const cur = gymStateOf(dateStr, rn, ex, 8);
+  if(el.classList.contains("sb")){            // 勾选 / 取消某一组
+    const n = Number(el.dataset.set)||0;
+    cur.done[ex] = ((Number(cur.done[ex])||0) === n) ? n-1 : n;
+    if(!cur.done[ex]) delete cur.done[ex];
+    if(cur.done[ex] && !cur.w[ex]) cur.w[ex] = gymLastWeight(ex) || null;
+    gymSaveState(dateStr, idx, gymDayIdx(dateStr));
+    save(); renderGym();
+  }else if(el.classList.contains("sw")){      // 一键用「上次的重量」
+    cur.w[ex] = Number(el.dataset.w) || 0;
+    gymSaveState(dateStr, idx, gymDayIdx(dateStr));
+    save(); renderGym();
+  }
+});
+document.getElementById("gym-switch").addEventListener("click",function(ev){
+  const el = ev.target.closest ? ev.target.closest("button") : null;
+  if(!el || el.dataset.gymday === undefined) return;
+  const i = Number(el.dataset.gymday);
+  gymViewIdx = (i === gymTodayRoutineIdx()) ? null : i;
+  renderGym();
+});
+document.getElementById("gym-plan").addEventListener("click",function(ev){
+  const el = ev.target.closest ? ev.target.closest("button") : null;
+  if(!el || el.dataset.gymset !== "1") return;
+  gymSetAsToday(Number(el.dataset.idx));
+});
+document.getElementById("gym-log").addEventListener("click",function(){
+  renderLogModal();
+  document.getElementById("log-modal").hidden = false;
+  document.body.style.overflow = "hidden";
+});
+document.getElementById("lm-close").addEventListener("click",function(){
+  document.getElementById("log-modal").hidden = true;
+  document.body.style.overflow = "";
+});
+document.getElementById("log-modal").addEventListener("click",function(e){
+  if(e.target.id === "log-modal"){
+    document.getElementById("log-modal").hidden = true;
+    document.body.style.overflow = "";
+  }
+});
+
+/* ---------- 健身：计划编辑弹窗 ---------- */
+let gmIdx = 0;
+function gymBuildDayOptions(){
+  const el = document.getElementById("gm-days");
+  el.innerHTML = gymRoutines().map(function(r,i){
+    return '<button data-i="'+i+'" class="'+(i===gmIdx?"on":"")+'">'+r.name+'日</button>';
+  }).join("");
+  Array.prototype.forEach.call(el.querySelectorAll("button"),function(b){
+    b.addEventListener("click",function(){ gmIdx = Number(b.dataset.i); renderGymModal(); });
+  });
+}
+function renderGymModal(){
+  const r = gymRoutine(gmIdx);
+  gymBuildDayOptions();
+  document.getElementById("gm-hint").textContent = r
+    ? (r.name+"日 · "+r.sub+" · "+r.ex.length+" 个动作 · 改动立即生效，历史记录不受影响")
+    : "这一套不存在";
+  document.getElementById("gm-list").innerHTML = r ? r.ex.map(function(e,i){
+    return '<div class="trow"><div class="info"><div class="n">'+(i+1)+'. '+e.n+'</div>'+
+      '<div class="d">'+e.sets+' 组 × '+e.reps+' · 休息 '+e.rest+(e.q?(' · '+e.q):'')+'</div></div>'+
+      '<button data-gmup="'+i+'">上移</button><button data-gmdel="'+i+'">删除</button></div>';
+  }).join("") : "";
+  Array.prototype.forEach.call(document.querySelectorAll("#gm-list [data-gmdel]"),function(b){
+    b.addEventListener("click",function(){
+      r.ex.splice(Number(b.dataset.gmdel),1);
+      save(); renderGymModal(); renderGym();
+    });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll("#gm-list [data-gmup]"),function(b){
+    b.addEventListener("click",function(){
+      const i = Number(b.dataset.gmup);
+      if(i <= 0) return;
+      const t = r.ex[i-1]; r.ex[i-1] = r.ex[i]; r.ex[i] = t;
+      save(); renderGymModal(); renderGym();
+    });
+  });
+}
+function openGymModal(){
+  const t = gymTodayRoutineIdx();
+  gmIdx = (t >= 0) ? t : 0;
+  renderGymModal();
+  document.getElementById("gym-modal").hidden = false;
+  document.body.style.overflow = "hidden";
+}
+function closeGymModal(){
+  document.getElementById("gym-modal").hidden = true;
+  document.body.style.overflow = "";
+}
+document.getElementById("gm-add").addEventListener("click",function(){
+  const name = document.getElementById("gm-name").value.trim();
+  if(!name){ alert("动作名不能为空"); return; }
+  const r = gymRoutine(gmIdx);
+  if(!r) return;
+  r.ex.push({
+    n: name,
+    s: document.getElementById("gm-muscle").value.trim(),
+    sets: Math.max(1, Math.min(10, Number(document.getElementById("gm-sets").value)||3)),
+    reps: document.getElementById("gm-reps").value.trim() || "8–10",
+    rest: document.getElementById("gm-rest").value.trim() || "90 s",
+    q: document.getElementById("gm-quote").value.trim()
+  });
+  ["gm-name","gm-muscle","gm-quote"].forEach(function(id){ document.getElementById(id).value = ""; });
+  document.getElementById("gm-reps").value = "8–10";
+  document.getElementById("gm-rest").value = "90 s";
+  save(); renderGymModal(); renderGym();
+});
+document.getElementById("gm-restore").addEventListener("click",function(){
+  const r = gymRoutine(gmIdx);
+  if(!r) return;
+  if(!confirm("把「"+r.name+"日」恢复成内置默认？（你自己增删改的动作都会还原）")) return;
+  for(let i=0;i<GYM_PLAN.routines.length;i++){
+    if(GYM_PLAN.routines[i].id === r.id){
+      gymPlan().routines[gmIdx] = JSON.parse(JSON.stringify(GYM_PLAN.routines[i]));
+      break;
+    }
+  }
+  save(); renderGymModal(); renderGym();
+});
+document.getElementById("gm-close").addEventListener("click",closeGymModal);
+document.getElementById("gym-modal").addEventListener("click",function(e){
+  if(e.target.id === "gym-modal") closeGymModal();
+});
+document.getElementById("gym-edit").addEventListener("click",openGymModal);
 
 renderAll();
 // 「进行中」标记与今日状态每分钟自动刷新（不重绘统计页，保持轻量）

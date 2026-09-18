@@ -72,6 +72,37 @@ const ok = (name, cond, extra) => {
     diag: (document.getElementById("diag-box") || {}).textContent || "",
     charts: (document.getElementById("s-week") || {}).querySelectorAll ? document.getElementById("s-week").querySelectorAll("svg").length : 0,
     bodyLen: document.body ? document.body.innerHTML.length : 0,
+    // 健身页
+    gymToday: (document.getElementById("gym-today") || {}).textContent || "",
+    gymPlan: (document.getElementById("gym-plan") || {}).textContent || "",
+    gymWeek: (document.getElementById("gym-week") || {}).textContent || "",
+    gymLog: (document.getElementById("lm-body") || {}).textContent || "",
+    gymK2: (document.getElementById("gym-k2") || {}).textContent || "",
+    gymK3: (document.getElementById("gym-k3") || {}).textContent || "",
+    gymSets: (function () {
+      const e = document.getElementById("gym-today");
+      return e ? e.querySelectorAll(".sb").length : -1;
+    })(),
+    gymKgVal: (function () {
+      const e = document.querySelector("#gym-today .kg");
+      return e ? e.value : null;
+    })(),
+    gymSwitch: (function () {
+      const e = document.getElementById("gym-switch");
+      return e ? e.querySelectorAll("button").length : -1;
+    })(),
+    planEx: (function () {
+      const e = document.getElementById("gym-plan");
+      return e ? e.querySelectorAll(".ex").length : -1;
+    })(),
+    gymModalRows: (function () {
+      const e = document.getElementById("gm-list");
+      return e ? e.querySelectorAll(".trow").length : -1;
+    })(),
+    logRows: (function () {
+      const e = document.getElementById("lm-body");
+      return e ? e.querySelectorAll(".lg").length : -1;
+    })(),
   }));
   const reload = async () => { errs = []; await page.reload({ waitUntil: "networkidle2" }); await sleep(1000); };
 
@@ -159,6 +190,92 @@ const ok = (name, cond, extra) => {
   s = await snap();
   ok("加载带 customTasks 的老数据不崩", s.tasks.length > 0 && errs.length === 0, errs.join(" | "));
   ok("老数据的自定义任务被保留", s.tasks.includes("老数据任务"), s.tasks.slice(0, 60));
+
+  // ---------- 9) 健身页：渲染 ----------
+  await reload();
+  await page.evaluate(() => document.querySelector('.nav button[data-v="gym"]').click());
+  await sleep(500);
+  s = await snap();
+  ok("健身页渲染出训练内容", s.gymToday.length > 60, s.gymToday.slice(0, 60));
+  ok("健身页显示今日安排或休息提示", s.gymToday.includes("日") || s.gymToday.includes("休息"), s.gymToday.slice(0, 40));
+  ok("健身页有本周安排", s.gymWeek.includes("今天"), s.gymWeek.slice(0, 40));
+  ok("计划卡有动作", s.planEx >= 5, "动作数=" + s.planEx);
+  ok("三套计划可切换", s.gymSwitch === 3, "按钮数=" + s.gymSwitch);
+  ok("健身页无 JS 错误", errs.length === 0, errs.join(" | "));
+
+  // ---------- 10) 健身页：勾组 + 填重量 → 刷新（数据落盘路径） ----------
+  const hasSets = s.gymSets > 0;
+  if (hasSets) {
+    await page.evaluate(() => {
+      document.querySelector("#gym-today .sb").click();            // 勾掉第 1 组
+    });
+    await sleep(300);
+    await page.evaluate(() => {
+      const kg = document.querySelector("#gym-today .kg");
+      kg.value = "42.5";
+      kg.dispatchEvent(new Event("input", { bubbles: true }));      // 模拟真实输入
+    });
+    await sleep(300);
+    s = await snap();
+    ok("勾组后该组变绿", await page.evaluate(() =>
+      !!document.querySelector("#gym-today .sb.done")), "未见 .sb.done");
+    ok("今日完成组数更新", /1 组/.test(s.gymK2), s.gymK2);
+    ok("填重量后容量计入", s.gymK3 !== "0", "容量=" + s.gymK3);
+    await reload();
+    s = await snap();
+    ok("刷新后重量仍在", s.gymKgVal === "42.5", "读回=" + s.gymKgVal);
+    ok("刷新后勾选仍在", await page.evaluate(() =>
+      !!document.querySelector("#gym-today .sb.done")), "勾选丢失");
+    ok("刷新后健身页无 JS 错误", errs.length === 0, errs.join(" | "));
+  } else {
+    console.log("  ⏭  今天是休息日，跳过勾组用例");
+  }
+
+  // ---------- 11) 健身：打卡记录 ----------
+  await page.evaluate(() => document.getElementById("gym-log").click());
+  await sleep(400);
+  s = await snap();
+  ok("打卡记录弹窗有内容", s.gymLog.length > 10, s.gymLog.slice(0, 50));
+  if (hasSets) ok("记录里出现今天的训练", s.logRows >= 1, "行数=" + s.logRows);
+  await page.evaluate(() => document.getElementById("lm-close").click());
+  await sleep(200);
+
+  // ---------- 12) 健身：编辑计划（增删动作）→ 刷新 ----------
+  const beforeEx = await page.evaluate(() => document.querySelectorAll("#gym-plan .ex").length);
+  await page.evaluate(() => document.getElementById("gym-edit").click());
+  await sleep(300);
+  s = await snap();
+  ok("编辑弹窗列出动作", s.gymModalRows >= 5, "行数=" + s.gymModalRows);
+  await page.evaluate(() => {
+    document.getElementById("gm-name").value = "端到端新动作";
+    document.getElementById("gm-add").click();
+  });
+  await sleep(300);
+  ok("新动作出现在计划里",
+     (await page.evaluate(() => document.querySelectorAll("#gym-plan .ex").length)) === beforeEx + 1,
+     "计划动作数没变");
+  await page.evaluate(() => document.getElementById("gm-close").click());
+  await sleep(200);
+  await reload();
+  await page.evaluate(() => document.querySelector('.nav button[data-v="gym"]').click());
+  await sleep(400);
+  ok("刷新后自定义动作仍在", (await snap()).gymPlan.includes("端到端新动作"), "自定义动作丢失");
+  ok("编辑流程无 JS 错误", errs.length === 0, errs.join(" | "));
+
+  // ---------- 13) 健身：数据随备份导出导入（跨设备路径） ----------
+  const gymRoundTrip = await page.evaluate((expectState) => {
+    const raw = JSON.parse(localStorage.getItem("orstudy.v1"));
+    const state = !!(raw.gym && raw.gym.state && Object.keys(raw.gym.state).length > 0);
+    return {
+      hasPlan: !!(raw.gym && raw.gym.plan && raw.gym.plan.routines && raw.gym.plan.routines.length === 3),
+      hasLog: !!(raw.gym && Array.isArray(raw.gym.log)),
+      hasState: state,
+      stateOk: expectState ? state : true,
+    };
+  }, hasSets);
+  ok("健身计划写进存储", gymRoundTrip.hasPlan, JSON.stringify(gymRoundTrip));
+  ok("健身记录写进存储", gymRoundTrip.hasLog, JSON.stringify(gymRoundTrip));
+  ok("每组重量写进存储", gymRoundTrip.stateOk, JSON.stringify(gymRoundTrip));
 
   console.log("=".repeat(50));
   console.log(`  通过 ${pass}，失败 ${fail}`);
