@@ -470,6 +470,19 @@ uv run python -c "from ortools.linear_solver import pywraplp; print('OK')"</code
     <div class="card" id="s-week"><div style="color:var(--muted);font-size:13.5px">加载中…</div></div>
 
     <h2>设置</h2>
+    <details>
+      <summary>诊断信息（手机出问题时先看这里）</summary>
+      <div class="body">
+        <p style="font-size:13.5px;color:var(--muted)">出问题时把下面这段<b>截图</b>发给助手，能直接定位是网络、缓存还是代码问题。</p>
+        <pre id="diag-box" style="background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;overflow:auto;font-size:11.5px;line-height:1.55;white-space:pre-wrap;margin:0 0 10px"></pre>
+        <div class="row">
+          <button id="diag-copy">复制诊断信息</button>
+          <button id="diag-fix" class="danger">一键修复（清 SW 与缓存）</button>
+        </div>
+        <div class="note">「一键修复」会注销 Service Worker 并清空离线缓存（<b>不会动你的打卡数据</b>），然后自动重载。</div>
+      </div>
+    </details>
+
     <details open>
       <summary>开学第一周的日期</summary>
       <div class="body">
@@ -561,7 +574,7 @@ uv run python -c "from ortools.linear_solver import pywraplp; print('OK')"</code
     </div>
   </div>
 
-  <footer>优化方向 · 本地打卡 · 数据只存在你自己的设备上</footer>
+  <footer>优化方向 · 本地打卡 · 数据只存在你自己的设备上 · <span id="appver"></span></footer>
 </main>
 
 <nav>
@@ -576,6 +589,31 @@ uv run python -c "from ortools.linear_solver import pywraplp; print('OK')"</code
 
 <script>
 "use strict";
+const APP_VERSION = "1.6";
+
+/* ?fix=1 或 ?nosw=1：一键自愈 —— 注销 Service Worker、清空离线缓存后重载。
+   只清缓存与 SW，不动 localStorage 里的打卡数据。 */
+if(/[?&](fix|nosw)=1/.test(location.search)){
+  (async () => {
+    const done = [];
+    try{
+      if("serviceWorker" in navigator){
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+        done.push("Service Worker ×" + regs.length);
+      }
+    }catch(e){}
+    try{
+      if(window.caches){
+        const ks = await caches.keys();
+        await Promise.all(ks.map(k => caches.delete(k)));
+        done.push("离线缓存 ×" + ks.length);
+      }
+    }catch(e){}
+    alert("已清理：" + (done.join("、") || "无可清理项") + "\n\n点确定后重新加载（打卡数据不受影响）。");
+    location.replace(location.pathname);
+  })();
+}
 /* ============================== 数据 ============================== */
 const PERIODS = {1:["08:00","09:50"],2:["10:10","12:00"],3:["14:00","15:50"],4:["16:10","18:00"],5:["19:00","20:50"]};
 const WEEKNAME = {0:"周日",1:"周一",2:"周二",3:"周三",4:"周四",5:"周五",6:"周六"};
@@ -1183,6 +1221,51 @@ function renderWeekChart(ws){
     '<div style="margin-top:8px;font-size:12px">'+legend+'</div>';
 }
 
+/* 诊断信息：手机出问题时截图给助手，直接定位是网络/缓存/代码问题 */
+async function renderDiag(){
+  const el = document.getElementById("diag-box");
+  if(!el) return;
+  const L = [];
+  L.push("页面版本: v" + APP_VERSION);
+  L.push("当前地址: " + location.origin + location.pathname + (location.search || ""));
+  const standalone = (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) || window.navigator.standalone === true;
+  L.push("打开方式: " + (standalone ? "已装到主屏（独立窗口）" : "浏览器标签页"));
+  L.push("安全上下文: " + (window.isSecureContext ? "是（HTTPS/本地）" : "否（HTTP）—— SW 不可用"));
+  try{
+    const raw = localStorage.getItem(KEY) || "";
+    L.push("打卡数据: " + (raw ? (Math.round(raw.length/102.4)/10 + " KB") : "空"));
+    L.push("恢复备份: " + (localStorage.getItem(KEY_BAK) ? "有" : "无"));
+  }catch(e){ L.push("打卡数据: 读取失败（可能禁用了本地存储）"); }
+  try{
+    const c = DB.checkins ? Object.keys(DB.checkins).length : 0;
+    L.push("有打卡记录的天数: " + c);
+    L.push("开学第一周: " + DB.settings.semesterStart + "（今天第 " + weekInfo(new Date()).week + " 周）");
+  }catch(e){}
+  L.push("同步: " + (SYNC.status || "未配置") + (SYNC.last ? (" ｜ 上次 " + new Date(SYNC.last).toLocaleString()) : "") + " ｜ 模式 " + (SYNC.mode || "generic"));
+  L.push("屏幕: " + window.innerWidth + "×" + window.innerHeight + " ｜ 在线: " + (navigator.onLine ? "是" : "否"));
+  L.push("时间: " + new Date().toString());
+  el.textContent = L.join("\n");   // 先落地同步部分，保证任何时候都有内容可看
+
+  // 异步补齐：SW 与缓存状态
+  let swTxt = "浏览器不支持";
+  try{
+    if("serviceWorker" in navigator){
+      const regs = await navigator.serviceWorker.getRegistrations();
+      swTxt = regs.length
+        ? ("已注册 " + regs.length + " 个；本页" + (navigator.serviceWorker.controller ? "由 SW 接管" : "未被 SW 接管"))
+        : "未注册";
+    }
+  }catch(e){ swTxt = "读取失败：" + e.message; }
+  let cacheTxt = "—";
+  try{
+    if(window.caches){
+      const ks = await caches.keys();
+      cacheTxt = ks.length ? ks.join(" / ") : "无";
+    }
+  }catch(e){ cacheTxt = "读取失败"; }
+  el.textContent = L.slice(0, 4).join("\n") + "\nService Worker: " + swTxt + "\n离线缓存: " + cacheTxt + "\n" + L.slice(4).join("\n");
+}
+
 /* 同步配置回显与状态 */
 function renderSyncUI(){
   const isGh = SYNC.mode === "github";
@@ -1373,13 +1456,49 @@ renderAll();
 // 「进行中」标记与今日状态每分钟自动刷新（不重绘统计页，保持轻量）
 setInterval(()=>{ renderToday(); renderSchedule(); }, 60000);
 // 已配置同步时：启动自动同步（2 秒后首拉，此后每 2 分钟）
-if(SYNC.url && SYNC.key){
+const syncConfigured = (SYNC.mode === "github")
+  ? (SYNC.token && SYNC.owner && SYNC.repo)
+  : (SYNC.url && SYNC.key);
+if(syncConfigured){
   setTimeout(()=>syncNow(false), 2000);
   setInterval(()=>syncNow(false), 120000);
 }
+const verEl = document.getElementById("appver");
+if(verEl) verEl.textContent = "v" + APP_VERSION;
+renderDiag();
 if("serviceWorker" in navigator && location.protocol.startsWith("http")){
-  navigator.serviceWorker.register("sw.js").catch(()=>{});
+  navigator.serviceWorker.register("sw.js").then(reg => {
+    // 有等待中的新版本 → 立刻接管，避免「卡在旧版」
+    if(reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
+    reg.addEventListener("updatefound", () => {
+      const sw = reg.installing;
+      if(sw) sw.addEventListener("statechange", () => {
+        if(sw.state === "installed" && navigator.serviceWorker.controller) sw.postMessage("SKIP_WAITING");
+      });
+    });
+    reg.update().catch(()=>{});
+  }).catch(()=>{});
 }
+document.getElementById("diag-fix").addEventListener("click",()=>{
+  location.replace(location.pathname + "?fix=1");
+});
+document.getElementById("diag-copy").addEventListener("click",()=>{
+  const t = document.getElementById("diag-box").textContent;
+  const done = () => alert("已复制，直接粘贴发给助手即可。");
+  if(navigator.clipboard && window.isSecureContext){
+    navigator.clipboard.writeText(t).then(done).catch(()=>{
+      const ta = document.createElement("textarea");
+      ta.value = t; document.body.appendChild(ta); ta.select();
+      try{ document.execCommand("copy"); done(); }catch(e){ alert("复制失败，请截图。"); }
+      ta.remove();
+    });
+  }else{
+    const ta = document.createElement("textarea");
+    ta.value = t; document.body.appendChild(ta); ta.select();
+    try{ document.execCommand("copy"); done(); }catch(e){ alert("复制失败，请截图。"); }
+    ta.remove();
+  }
+});
 </script>
 </body>
 </html>

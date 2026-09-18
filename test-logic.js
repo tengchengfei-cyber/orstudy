@@ -13,6 +13,9 @@ const stubs = `
 var localStorage = { _d:{}, getItem(k){return this._d[k]||null}, setItem(k,v){this._d[k]=v} };
 function alert(){} function confirm(){return false}
 var renderAll = function(){};
+var location = { search:"", pathname:"/", protocol:"http:", origin:"http://localhost", replace(){} };
+var navigator = { onLine:true };
+var window = { isSecureContext:true, innerWidth:390, innerHeight:844, caches:null, matchMedia(){return {matches:false}} };
 `;
 
 const tests = `
