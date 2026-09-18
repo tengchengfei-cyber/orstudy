@@ -2,6 +2,17 @@
 
 一个**纯静态、零依赖**的单页应用：课表（含单双周）＋ 每日任务打卡 ＋ 计划与资源清单。
 
+**🔗 已部署（GitHub Pages）**：https://tengchengfei-cyber.github.io/orstudy/
+
+**仓库**：https://github.com/tengchengfei-cyber/orstudy
+
+**更新方法**：改完代码后
+```bash
+cd 学习站
+git add -A && git commit -m "说明" && git push
+```
+约 1 分钟内线上自动更新（若手机还是旧版，把 `sw.js` 里的 `CACHE` 版本号 +1 再推）。
+
 - 无框架、无构建步骤、无后端
 - 打卡数据存在**你自己的设备**里（localStorage），不上传任何服务器
 - 手机可用，支持「添加到主屏幕」，支持离线
