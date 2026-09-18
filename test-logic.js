@@ -162,6 +162,60 @@ save();
 eq("save 写主存储", JSON.parse(localStorage._d["orstudy.v1"]).checkins["2026-09-17"].length, 1);
 eq("save 写恢复备份", JSON.parse(localStorage._d["orstudy.v1.backup"]).checkins["2026-09-17"].length, 1);
 
+// ⚠️ 历史 bug 回归（v1.6 修复）：sanitize 未初始化 out.customTasks，
+//    导致「打卡后刷新」整页崩（Cannot set properties of undefined）。逻辑测试必须守住这条。
+{
+  let e1 = null;
+  try { sanitize({ customTasks: { "1": [{ id: "a", m: "其他", n: "x", d: "", min: 5 }] } }); }
+  catch (e) { e1 = e.message; }
+  eq("sanitize 能处理带 customTasks 的数据", e1, null);
+  eq("sanitize 保留 customTasks 内容",
+     sanitize({ customTasks: { "1": [{ id: "a", m: "其他", n: "x", d: "", min: 5 }] } }).customTasks["1"].length, 1);
+  eq("sanitize 无 customTasks 时也返回对象", typeof sanitize({}).customTasks, "object");
+  eq("sanitize 恒返回 checkins/extra 对象",
+     [typeof sanitize({}).checkins, typeof sanitize({}).extra].join(","), "object,object");
+
+  // 完整往返：save → loadDB → sanitize（真实的崩溃路径）
+  DB = ensureCustomTasks(DEF());
+  DB.checkins["2026-09-17"] = ["en-vocab"];
+  save();
+  let e2 = null;
+  try { DB = ensureCustomTasks(sanitize(JSON.parse(localStorage.getItem("orstudy.v1")))); }
+  catch (e) { e2 = e.message; }
+  eq("存储往返(save→读回→sanitize)不抛错", e2, null);
+  eq("往返后 customTasks 完好", Array.isArray(DB.customTasks[1]), true);
+  eq("往返后打卡数据完好", DB.checkins["2026-09-17"].length, 1);
+}
+
+// ⚠️ 历史 bug 回归（v1.6 修复）：loadDB 的「空数据」判定只看 checkins/extra，
+//    导致「只自定义了任务、还没打卡」的数据被误判为空，进而被恢复备份覆盖。
+{
+  const mk = (o) => JSON.stringify(Object.assign(
+    { settings: { semesterStart: "2026-09-07" }, checkins: {}, extra: {}, customTasks: {}, updated: 0 }, o));
+
+  localStorage._d = {
+    "orstudy.v1": mk({ customTasks: { "1": [{ id: "c1", m: "其他", n: "自定义", d: "", min: 5 }] }, updated: 123 }),
+    "orstudy.v1.backup": mk({ checkins: { "2026-09-17": ["en-vocab"] }, updated: 99 }),
+  };
+  DB = ensureCustomTasks(loadDB());
+  eq("只自定义任务(未打卡)时优先主存储", DB.customTasks[1][0].id, "c1");
+  eq("不被备份里的打卡覆盖", Object.keys(DB.checkins).length, 0);
+
+  localStorage._d = {
+    "orstudy.v1": mk({ settings: {} }),
+    "orstudy.v1.backup": mk({ checkins: { "2026-09-17": ["en-vocab"] }, updated: 99 }),
+  };
+  DB = ensureCustomTasks(loadDB());
+  eq("主存储确实为空时才回退备份", Object.keys(DB.checkins).length, 1);
+
+  localStorage._d = {
+    "orstudy.v1": "{ 坏掉的 JSON",
+    "orstudy.v1.backup": mk({ checkins: { "2026-09-16": ["en-vocab"] }, updated: 5 }),
+  };
+  DB = ensureCustomTasks(loadDB());
+  eq("主存储损坏时回退备份", Object.keys(DB.checkins)[0], "2026-09-16");
+}
+
 console.log("\\n【10】一键全打卡（dayTaskIds / setDayAll）");
 DB.checkins = {}; DB.extra = {};
 eq("周四 dayTaskIds = 3 项", dayTaskIds("2026-09-17").length, 3);

@@ -674,13 +674,19 @@ const MILESTONES = [
 const KEY = "orstudy.v1";
 const KEY_BAK = "orstudy.v1.backup";
 const SEMESTER_START = "2026-08-31";   // 校历：第 1 周的周一
-const DEF = () => ({settings:{semesterStart:SEMESTER_START},checkins:{},extra:{},updated:0});
+const DEF = () => ({settings:{semesterStart:SEMESTER_START},checkins:{},extra:{},customTasks:{},updated:0});
 
 /* 清洗任意来源的数据为合法结构，防止损坏的存储把应用搞崩 */
 function sanitize(raw){
   const out = DEF();
   const r = (raw && typeof raw === "object") ? raw : {};
   out.settings = Object.assign(out.settings, (r.settings && typeof r.settings === "object") ? r.settings : {});
+  // ⚠️ 容器必须显式初始化：下面会往 out.customTasks[d] 写属性，
+  //    若这里不初始化，带 customTasks 的数据一加载就抛
+  //    "Cannot set properties of undefined"，整页渲染中止（只剩静态框架）。
+  out.checkins = {};
+  out.extra = {};
+  out.customTasks = {};
   if(r.checkins && typeof r.checkins === "object" && !Array.isArray(r.checkins)){
     Object.keys(r.checkins).forEach(k=>{
       if(Array.isArray(r.checkins[k])) out.checkins[k] = r.checkins[k].filter(x=>typeof x==="string");
@@ -702,12 +708,20 @@ function sanitize(raw){
   out.taskSchema = (typeof r.taskSchema === "number") ? r.taskSchema : 0;
   return out;
 }
+/* 判断主存储是否「确实被用过」。只看 checkins/extra 是不够的：
+   用户可能先自定义了任务、还没打过卡，那种数据也必须被尊重，
+   否则会被误判为空、进而被恢复备份覆盖。 */
+function dbLooksUsed(db){
+  return Object.keys(db.checkins).length > 0
+      || Object.keys(db.extra).length > 0
+      || Number(db.updated) > 0;
+}
 /* 主存储损坏或为空时，自动回退到备份 */
 function loadDB(){
   let raw = null;
   try{ raw = JSON.parse(localStorage.getItem(KEY)); }catch(e){ raw = null; }
   const db = sanitize(raw);
-  if(Object.keys(db.checkins).length || Object.keys(db.extra).length) return db;
+  if(dbLooksUsed(db)) return db;
   try{ raw = JSON.parse(localStorage.getItem(KEY_BAK)); }catch(e){ raw = null; }
   return sanitize(raw);
 }

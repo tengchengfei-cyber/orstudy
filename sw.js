@@ -3,7 +3,7 @@
 
    ⚠️ 重要约定（v6 起）：导航请求的 respondWith 永远返回一个 Response，
    绝不让 respondWith(undefined) 把「网络抖动」放大成「页面打不开」。 */
-const CACHE = "orstudy-v8";
+const CACHE = "orstudy-v9";
 const ASSETS = ["./", "./index.html", "./manifest.json", "./icon.svg"];
 
 /* 页面可以让等待中的新版本立刻接管（避免卡在旧版） */
